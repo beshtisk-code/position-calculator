@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Position Calculator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg:#160e38; --bg2:#1e1448; --bg3:#281b5a; --bg4:#33246c;
+  --border:rgba(255,255,255,0.10); --border2:rgba(255,255,255,0.18);
+  --text:#f0ecff; --text2:#b8aee8; --text3:#7a6db0;
+  --green:#00e6a0; --gdim:rgba(0,230,160,0.15);
+  --red:#ff5c6e;   --rdim:rgba(255,92,110,0.14);
+  --amber:#ffb347; --adim:rgba(255,179,71,0.14);
+  --blue:#6ec6ff;  --bdim:rgba(110,198,255,0.14);
+  --purple:#6C4AFF;--pdim:rgba(108,74,255,0.22);
+  --accent:#6C4AFF;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;padding:20px 24px}
+
+/* ── Header ── */
+.hdr{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.hdr h1{font-size:21px;font-weight:700;letter-spacing:-.3px}
+.hdr .sub{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text3);letter-spacing:.06em}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);margin-left:auto;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ── Equity bar (top) ── */
+.eq-bar{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.eq-field{display:flex;align-items:center;gap:10px}
+.eq-field label{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3);letter-spacing:.08em;white-space:nowrap}
+.eq-input-wrap{position:relative}
+.eq-prefix{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--text3);pointer-events:none}
+.eq-input{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;padding:9px 12px 9px 26px;width:180px;outline:none;-moz-appearance:textfield}
+.eq-input::-webkit-inner-spin-button{-webkit-appearance:none}
+.eq-input:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gdim)}
+.eq-hint{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text3);margin-left:auto}
+
+/* ── Ticker tabs ── */
+.ticker-tabs-wrap{display:flex;align-items:center;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.ticker-tab{position:relative;display:flex;align-items:center;gap:0;border-radius:10px;border:1px solid var(--border2);overflow:hidden;background:var(--bg2);cursor:pointer;transition:border-color .15s}
+.ticker-tab.active{border-color:var(--green);box-shadow:0 0 0 2px var(--gdim)}
+.ticker-tab input.tname{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;background:transparent;border:none;color:var(--text);outline:none;padding:9px 14px;width:90px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}
+.ticker-tab input.tname::placeholder{color:var(--text3);font-weight:400;text-transform:none}
+.ticker-tab .tab-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);margin-right:10px;flex-shrink:0;transition:background .15s}
+.ticker-tab.active .tab-dot{background:var(--green);box-shadow:0 0 5px var(--green)}
+.add-tab-btn{font-family:'JetBrains Mono',monospace;font-size:12px;padding:9px 14px;border-radius:10px;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;letter-spacing:.04em}
+.add-tab-btn:hover{border-color:var(--border2);color:var(--text2);background:var(--bg2)}
+.remove-tab-btn{font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0 8px 0 0;line-height:1;transition:color .12s}
+.remove-tab-btn:hover{color:var(--red)}
+
+/* ── Main layout ── */
+.layout{display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start}
+
+/* ── Panel ── */
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:12px}
+.panel:last-child{margin-bottom:0}
+.ph{padding:12px 18px;border-bottom:1px solid var(--border);font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3);letter-spacing:.09em;text-transform:uppercase;display:flex;align-items:center;gap:7px}
+.ph::before{content:'';width:3px;height:3px;border-radius:50%;background:var(--green);flex-shrink:0}
+.ph.amber::before{background:var(--amber)}
+.ph.purple::before{background:var(--purple)}
+.ig{padding:14px 18px;border-bottom:1px solid var(--border)}
+.ig:last-child{border-bottom:none}
+lbl,label{display:block;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text2);letter-spacing:.07em;margin-bottom:7px}
+
+/* ── Inputs ── */
+.iw{position:relative}
+.ipfx{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text3);pointer-events:none}
+input[type=number],select{width:100%;min-width:0;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:500;padding:10px 12px 10px 26px;outline:none;transition:border-color .15s,box-shadow .15s;-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+input[type=number]:focus,select:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gdim)}
+select{font-size:12px;padding:10px 12px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%23555e6e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+select option{background:#1a1e25}
+
+/* ── LimitP row ── */
+.price-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);gap:8px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.price-cell{display:flex;flex-direction:column;gap:5px;min-width:0;overflow:hidden}
+.price-cell label{margin-bottom:0}
+.price-derived{background:var(--bg4);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:var(--text);min-height:40px;display:flex;align-items:center}
+.price-derived.limp{color:var(--purple)}
+.price-derived.stop-d{color:var(--red)}
+
+/* ── Gap levels ── */
+.gap-row{padding:14px 18px;border-bottom:1px solid var(--border)}
+.gap-inputs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
+.gap-cell label{color:var(--text3);font-size:9px;margin-bottom:4px}
+.gap-result{background:var(--bg4);border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:var(--amber);min-height:36px;display:flex;align-items:center}
+.gap-result.g20{color:var(--amber)}
+.gap-result.g75{color:var(--blue)}
+.gap-result.g100{color:var(--green)}
+
+/* ── Cat badges ── */
+.cat-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.cbadge{font-size:9px;font-family:'JetBrains Mono',monospace;padding:2px 7px;border-radius:4px;background:var(--bg4);border:1px solid var(--border);color:var(--text2)}
+
+/* ── Results ── */
+.rg{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)}
+.rc{background:var(--bg2);padding:16px 20px;transition:background .12s}
+.rc:hover{background:var(--bg3)}
+.rc.fw{grid-column:1/-1;background:var(--bg2);border-top:1px solid var(--border)}
+.rc.hero{grid-column:1/-1;background:var(--bg2);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px}
+.rl{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3);letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
+.rv{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--text);line-height:1}
+.rv.big{font-size:44px;text-shadow:0 0 24px rgba(0,208,132,.2)}
+.rv.green{color:var(--green)}.rv.red{color:var(--red)}.rv.amber{color:var(--amber)}.rv.blue{color:var(--blue)}.rv.purple{color:var(--purple)}
+.rsub{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3);margin-top:4px}
+
+/* ── Stop bar ── */
+.sbar{padding:16px 20px;background:var(--bg2);border-top:1px solid var(--border)}
+.bar-track{position:relative;height:5px;background:var(--bg4);border-radius:3px;margin:10px 0 7px;overflow:visible}
+.bar-fill{position:absolute;left:0;top:0;bottom:0;background:var(--red);border-radius:3px;transition:width .25s}
+.em{position:absolute;top:-5px;width:12px;height:12px;border-radius:50%;background:var(--green);border:2px solid var(--bg2);box-shadow:0 0 6px var(--green);transform:translateX(-50%);transition:left .25s}
+.sm{position:absolute;top:-5px;width:12px;height:12px;border-radius:50%;background:var(--red);border:2px solid var(--bg2);box-shadow:0 0 6px var(--red);transform:translateX(-50%);transition:left .25s}
+.lm{position:absolute;top:-5px;width:12px;height:12px;border-radius:50%;background:var(--purple);border:2px solid var(--bg2);box-shadow:0 0 6px var(--purple);transform:translateX(-50%);transition:left .25s}
+.bar-lbls{display:flex;justify-content:space-between;font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3)}
+
+/* ── Stats row ── */
+.stats-row{display:flex;gap:18px;flex-wrap:wrap;padding:14px 20px;background:var(--bg2);border-top:1px solid var(--border)}
+.stat .rv{font-size:15px}
+
+/* ── Log ── */
+.log-row{display:grid;grid-template-columns:90px 1fr 65px 60px 54px 18px;gap:6px;padding:8px 18px;border-bottom:1px solid var(--border);font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text2);align-items:center}
+.log-row.hd{font-size:9px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;cursor:default}
+.log-summary{transition:background .1s}
+.log-summary:hover{background:var(--bg3)}
+.log-detail{background:var(--bg3);border-bottom:1px solid var(--border);padding:14px 20px;animation:fadeIn .15s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.log-detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.ld-section{display:flex;flex-direction:column;gap:0}
+.ld-title{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3);letter-spacing:.09em;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:6px}
+.ld-row{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text2);padding:3px 0;gap:8px}
+.ld-row span:first-child{color:var(--text3);flex-shrink:0}
+.ld-row span:last-child{text-align:right}
+.empty-state{padding:24px;text-align:center;color:var(--text3);font-size:11px;font-family:'JetBrains Mono',monospace;line-height:2}
+@media(max-width:700px){.log-detail-grid{grid-template-columns:1fr}.log-row{grid-template-columns:80px 1fr 55px 55px 14px}}
+
+/* ── Buttons ── */
+.btn-row{display:flex;gap:7px;padding:12px 18px;border-top:1px solid var(--border);background:var(--bg2)}
+.btn{font-family:'JetBrains Mono',monospace;font-size:11px;padding:8px 14px;border-radius:7px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .13s;letter-spacing:.04em}
+.btn:hover{background:var(--bg4);color:var(--text)}
+.btn.primary{background:var(--gdim);border-color:rgba(0,208,132,.4);color:var(--green)}
+.btn.primary:hover{background:rgba(0,208,132,.2)}
+.btn.danger{background:var(--rdim);border-color:rgba(255,79,79,.3);color:var(--red);padding:4px 10px;font-size:10px}
+
+@media(max-width:800px){.layout{grid-template-columns:1fr}.rv.big{font-size:34px}}
+
+/* ── Day tabs ── */
+.day-tab{padding:9px 16px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3);cursor:pointer;border-right:1px solid var(--border);white-space:nowrap;transition:all .12s;display:flex;flex-direction:column;gap:2px;align-items:center;min-width:80px;background:transparent;border-top:none;border-left:none;border-bottom:2px solid transparent}
+.day-tab:hover{color:var(--text2);background:var(--bg3)}
+.day-tab.active{color:var(--green);border-bottom:2px solid var(--green);background:rgba(0,208,132,.04)}
+.day-tab .dt-label{font-weight:600;letter-spacing:.05em}
+.day-tab .dt-count{font-size:9px;color:var(--text3);font-weight:400}
+.day-tab.active .dt-count{color:rgba(0,208,132,.7)}
+.day-tab.imported{color:var(--purple)}
+.day-tab.imported.active{color:var(--purple);border-bottom-color:var(--purple);background:rgba(167,139,250,.04)}
+
+
+/* ── Entry price arrows ── */
+.entry-row{display:flex;align-items:stretch;gap:5px;overflow:hidden}
+.entry-row .iw{flex:1 1 0;min-width:0;overflow:hidden}
+.entry-row .iw input{width:100%;min-width:0;font-size:13px;letter-spacing:-0.02em}
+.entry-arrows{display:flex;flex-direction:column;gap:3px;flex:0 0 26px}
+.arrow-btn{width:26px;height:20px;background:var(--bg4);border:1px solid var(--border2);border-radius:5px;color:var(--text2);font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s,color .1s;user-select:none;-webkit-user-select:none;line-height:1;padding:0}
+.arrow-btn:hover{background:var(--purple);border-color:rgba(108,74,255,.6);color:#fff}
+.arrow-btn:active{background:rgba(108,74,255,.8);transform:scale(0.93)}
+/* ── Bracket warning ── */
+.bracket-warn{display:none;align-items:center;gap:8px;margin-top:7px;padding:8px 11px;border-radius:7px;background:rgba(255,92,110,0.14);border:1px solid rgba(255,92,110,0.40);animation:warnPop .18s ease}
+@keyframes warnPop{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+.bracket-warn.visible{display:flex}
+.bracket-warn .warn-icon{font-size:14px;flex-shrink:0;line-height:1}
+.bracket-warn .warn-text{font-size:10px;font-family:'JetBrains Mono',monospace;color:#ff7070;line-height:1.5;flex:1}
+.bracket-warn .warn-text strong{color:#ff4f4f;display:block;margin-bottom:1px}
+.bracket-warn .warn-fix{font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 10px;border-radius:5px;border:1px solid rgba(255,79,79,0.4);background:rgba(255,79,79,0.14);color:#ff5c6e;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .12s;font-weight:600}
+.bracket-warn .warn-fix:hover{background:rgba(255,92,110,0.28)}
+.entry-mismatch{border-color:rgba(255,92,110,.65) !important;box-shadow:0 0 0 3px rgba(255,92,110,.16) !important}
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="hdr">
+  <h1>Position Calculator</h1>
+  <span class="sub">SHORTSIDE · ALPHA SIZING</span>
+  <div class="dot"></div>
+</div>
+
+<!-- ── Global equity bar ── -->
+<div class="eq-bar">
+  <div class="eq-field">
+    <label>TODAY'S EQUITY</label>
+    <div class="eq-input-wrap">
+      <span class="eq-prefix">$</span>
+      <input class="eq-input" type="number" id="equity" value="20000" min="0" step="100" oninput="calcActive()">
+    </div>
+  </div>
+  <div class="eq-hint" id="equity-hint">Account loaded</div>
+</div>
+
+<!-- ── Ticker tabs ── -->
+<div class="ticker-tabs-wrap" id="ticker-tabs-wrap"></div>
+
+<!-- ── Per-ticker content (one hidden div per tab) ── -->
+<div id="ticker-panels"></div>
+
+<!-- ── Trade log (global) ── -->
+<div class="panel" style="margin-top:14px" id="log-panel">
+  <div class="ph" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <span>Trade log</span>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <label for="log-import" class="btn" style="cursor:pointer;margin:0;background:var(--pdim);border-color:rgba(108,74,255,.4);color:var(--text2)">Import day</label>
+      <input type="file" id="log-import" accept=".json" style="display:none" onchange="importLog(event)">
+      <button class="btn" onclick="exportLog()">Export today</button>
+      <button class="btn danger" onclick="clearDayLog()">Clear today</button>
+    </div>
+  </div>
+  <!-- Day tabs -->
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);overflow-x:auto" id="day-tabs"></div>
+  <!-- Header row -->
+  <div class="log-row hd">
+    <span>TICKER / CAT</span><span>ENTRY → STOP · LIMT-P</span><span>SHARES</span><span>RISK $</span><span>TIME</span><span></span>
+  </div>
+  <div id="log-body">
+    <div class="empty-state">No trades logged yet.</div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════
+   DATA
+══════════════════════════════════ */
+const CATS = {
+  A:[
+    {cat:'A', label:'A — $1.01–$2.00', lo:1.01, hi:2.00,  alloc:17, wr:84.5, pf:3.02, kelly:42.5, qk:10.6, aw:.221, al:-.600, signal:'elite'},
+    {cat:'B', label:'B — $3.01–$4.00', lo:3.01, hi:4.00,  alloc:22, wr:78.8, pf:2.81, kelly:36.6, qk:9.1,  aw:.268, al:-.533, signal:'strong'},
+    {cat:'C', label:'C — $2.01–$3.00', lo:2.01, hi:3.00,  alloc:20, wr:0,    pf:0,    kelly:0,    qk:0,    aw:0,    al:0,     signal:'nodata'},
+    {cat:'Ca',label:'Ca — $4.01–$6.00',lo:4.01, hi:6.00,  alloc:12, wr:66.7, pf:2.09, kelly:19.0, qk:4.7,  aw:.262, al:-.375, signal:'weak'},
+    {cat:'Cb',label:'Cb — $6.01+',     lo:6.01, hi:Infinity,alloc:34,wr:94.4, pf:33.81,kelly:90.3, qk:22.6, aw:.254, al:-.190, signal:'elite'},
+  ],
+  T:[
+    {cat:'D', label:'D — $1.01–$3.00',  lo:1.01, hi:3.00,     alloc:25, wr:83.8, pf:3.15, kelly:44.0, qk:11.0, aw:.245, al:-.605, signal:'strong'},
+    {cat:'E', label:'E — $4.01–$6.00',  lo:4.01, hi:6.00,     alloc:30, wr:91.2, pf:4.49, kelly:60.7, qk:15.2, aw:.254, al:-.878, signal:'elite'},
+    {cat:'F', label:'F — $3.01–$4.00',  lo:3.01, hi:4.00,     alloc:6,  wr:77.6, pf:1.29, kelly:-12.3,qk:-3.1, aw:.239, al:-.961, signal:'avoid'},
+    {cat:'Fa',label:'Fa — $6.01–$11.00',lo:6.01, hi:11.00,    alloc:13, wr:75.0, pf:2.05, kelly:20.2, qk:5.1,  aw:.296, al:-.649, signal:'weak'},
+    {cat:'Fb',label:'Fb — $11.01+',     lo:11.01,hi:Infinity,  alloc:18, wr:78.9, pf:3.67, kelly:46.7, qk:11.7, aw:.341, al:-.522, signal:'strong'},
+  ],
+  ATM:[
+    {cat:'G',label:'G — $1.25–$4.00',lo:1.25,hi:4.00,     alloc:30,wr:80.4,pf:3.56,kelly:46.5,qk:11.6,aw:.233,al:-.402,signal:'strong'},
+    {cat:'H',label:'H — $4.01–$7.00',lo:4.01,hi:7.00,     alloc:34,wr:75.0,pf:8.74,kelly:61.7,qk:15.4,aw:.249,al:-.133,signal:'elite'},
+    {cat:'L',label:'L — $7.01+',     lo:7.01,hi:Infinity,  alloc:34,wr:87.5,pf:15.47,kelly:79.0,qk:19.8,aw:.266,al:-.180,signal:'elite'},
+  ],
+  D2:[
+    {cat:'M1',label:'M1 — $1.25–$3.00', lo:1.25,hi:3.00,     alloc:8, wr:57.9,pf:1.43,kelly:-4.3,qk:-1.1,aw:.135,al:-.200,signal:'avoid'},
+    {cat:'M2',label:'M2 — $3.01–$6.00', lo:3.01,hi:6.00,     alloc:16,wr:66.7,pf:1.90,kelly:14.1,qk:3.5, aw:.187,al:-.295,signal:'weak'},
+    {cat:'M3',label:'M3 — $6.01–$11.00',lo:6.01,hi:11.00,    alloc:32,wr:81.2,pf:4.42,kelly:53.6,qk:13.4,aw:.248,al:-.367,signal:'elite'},
+    {cat:'M4',label:'M4 — $11.01+',     lo:11.01,hi:Infinity, alloc:20,wr:82.4,pf:3.72,kelly:49.2,qk:12.3,aw:.261,al:-.490,signal:'strong'},
+  ],
+  S1n:[{cat:'As1',label:'As1 — $1.05+',lo:1.05,hi:Infinity,alloc:10,wr:79.4,pf:2.82,kelly:37.2,qk:9.3,aw:.207,al:-.424,signal:'good'}],
+  Op100:[{cat:'Top1',label:'Top1 — $1.05+',lo:1.05,hi:Infinity,alloc:35,wr:87.5,pf:7.88,kelly:70.9,qk:17.7,aw:.224,al:-.297,signal:'elite'}],
+};
+
+const SC = {
+  elite: {bg:'rgba(0,230,160,.14)',  border:'rgba(0,230,160,.5)',  text:'#00e6a0'},
+  strong:{bg:'rgba(110,198,255,.12)',border:'rgba(110,198,255,.4)', text:'#6ec6ff'},
+  good:  {bg:'rgba(110,198,255,.08)',border:'rgba(110,198,255,.25)',text:'#6ec6ff'},
+  weak:  {bg:'rgba(255,179,71,.12)', border:'rgba(255,179,71,.35)',text:'#ffb347'},
+  avoid: {bg:'rgba(255,92,110,.12)', border:'rgba(255,92,110,.4)', text:'#ff5c6e'},
+  nodata:{bg:'rgba(122,109,176,.15)',border:'rgba(122,109,176,.3)',text:'#7a6db0'},
+};
+
+/* ══════════════════════════════════
+   STATE
+══════════════════════════════════ */
+let activeTab = 0;
+let tradeLog  = JSON.parse(localStorage.getItem('pcLog') || '[]');
+
+// Tab state: [{name, setup, catIdx, entry, stop, manualStop, prevClose}]
+function defaultTab(name='') {
+  return {name, setup:'A', catIdx:0, entry:'', stop:'', manualStop:false, prevClose:''};
+}
+
+let tabs = JSON.parse(localStorage.getItem('pcTabs') || 'null');
+if (!tabs || !tabs.length) tabs = [defaultTab('TICKER 1'), defaultTab('TICKER 2'), defaultTab('TICKER 3')];
+
+/* ══════════════════════════════════
+   HELPERS
+══════════════════════════════════ */
+function f(n, d=2) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return n.toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
+}
+function fi(n) { return (!n || isNaN(n)) ? '—' : Math.floor(n).toLocaleString('en-US'); }
+
+function saveTabs() { localStorage.setItem('pcTabs', JSON.stringify(tabs)); }
+
+function getCat(tab) {
+  const cats = CATS[tab.setup] || CATS['A'];
+  return cats[tab.catIdx] || cats[0];
+}
+
+function checkBracket(i, entryVal) {
+  const t         = tabs[i];
+  const cat       = getCat(t);
+  const entryEl   = document.getElementById(`entry-${i}`);
+  const warnEl    = document.getElementById(`bwarn-${i}`);
+  const warnText  = document.getElementById(`bwarn-text-${i}`);
+  const warnFix   = document.getElementById(`bwarn-fix-${i}`);
+  if (!warnEl) return;
+
+  // Clear state first
+  warnEl.classList.remove('visible');
+  if (entryEl) entryEl.classList.remove('entry-mismatch');
+
+  if (isNaN(entryVal) || entryVal <= 0) return;
+
+  // Check if entry fits the selected bracket
+  const inBracket = entryVal >= cat.lo && entryVal <= cat.hi;
+  if (inBracket) return;
+
+  // Find which bracket it SHOULD be in
+  const allCats = CATS[t.setup] || [];
+  const correct = allCats.find(c => entryVal >= c.lo && entryVal <= c.hi);
+
+  // Build message
+  const hiStr = cat.hi === Infinity ? '+' : '–$' + cat.hi.toFixed(2);
+  const selectedRange = `$${cat.lo.toFixed(2)}${hiStr}`;
+
+  let msg, fixLabel;
+  if (correct) {
+    const chiStr = correct.hi === Infinity ? '+' : '–$' + correct.hi.toFixed(2);
+    const correctRange = `$${correct.lo.toFixed(2)}${chiStr}`;
+    msg = `$${entryVal.toFixed(2)} is outside ${cat.cat} (${selectedRange})\nShould be → ${correct.cat} (${correctRange})`;
+    fixLabel = `→ ${correct.cat}`;
+    warnFix.style.display = '';
+    warnFix.textContent = fixLabel;
+    warnFix.onclick = () => switchToCat(i, allCats.indexOf(correct));
+  } else {
+    msg = `$${entryVal.toFixed(2)} is outside ${cat.cat} (${selectedRange})`;
+    warnFix.style.display = 'none';
+  }
+
+  warnText.innerHTML = `<strong>Wrong bracket!</strong>${msg.replace('\n','<br>')}`;
+  warnEl.classList.add('visible');
+  if (entryEl) entryEl.classList.add('entry-mismatch');
+}
+
+function switchToCat(i, catIdx) {
+  tabs[i].catIdx = catIdx;
+  const sel = document.getElementById(`cat-${i}`);
+  if (sel) sel.value = catIdx;
+  saveTabs();
+  calcTab(i);
+}
+
+
+/* ══════════════════════════════════
+   ENTRY PRICE STEP ARROWS
+   <$4.00  → ±$0.01
+   $4.01–$9.99 → ±$0.02
+   $10.00+ → ±$0.03
+══════════════════════════════════ */
+let _stepTimer = null;
+let _stepInterval = null;
+
+function getStep(val) {
+  if (val < 4.00)  return 0.01;
+  if (val < 10.00) return 0.02;
+  return 0.03;
+}
+
+function doStep(tabIdx, direction) {
+  const el  = document.getElementById(`entry-${tabIdx}`);
+  if (!el) return;
+  const cur = parseFloat(el.value) || 0;
+  const step = getStep(cur);
+  const next = Math.max(0, parseFloat((cur + direction * step).toFixed(2)));
+  el.value = next.toFixed(2);
+  tabs[tabIdx].entry      = el.value;
+  tabs[tabIdx].manualStop = false;
+  saveTabs();
+  calcTab(tabIdx);
+}
+
+function startStep(tabIdx, direction) {
+  // Fire once immediately
+  doStep(tabIdx, direction);
+  // Then after 400ms hold, repeat every 80ms
+  _stepTimer = setTimeout(() => {
+    _stepInterval = setInterval(() => doStep(tabIdx, direction), 80);
+  }, 400);
+}
+
+function stopStep() {
+  clearTimeout(_stepTimer);
+  clearInterval(_stepInterval);
+  _stepTimer = null;
+  _stepInterval = null;
+}
+
+/* ══════════════════════════════════
+   RENDER TABS BAR
+══════════════════════════════════ */
+function renderTabsBar() {
+  const wrap = document.getElementById('ticker-tabs-wrap');
+  wrap.innerHTML = '';
+  tabs.forEach((t, i) => {
+    const div = document.createElement('div');
+    div.className = 'ticker-tab' + (i === activeTab ? ' active' : '');
+    div.innerHTML = `
+      <div class="tab-dot"></div>
+      <input class="tname" type="text" value="${t.name}" placeholder="Ticker ${i+1}" maxlength="10"
+        onclick="switchTab(${i})"
+        oninput="renameTab(${i}, this.value)">
+      ${tabs.length > 1 ? `<button class="remove-tab-btn" onclick="removeTab(${i})" title="Remove">✕</button>` : ''}
+    `;
+    wrap.appendChild(div);
+  });
+  if (tabs.length < 5) {
+    const btn = document.createElement('button');
+    btn.className = 'add-tab-btn';
+    btn.textContent = '+ Add ticker';
+    btn.onclick = addTab;
+    wrap.appendChild(btn);
+  }
+}
+
+/* ══════════════════════════════════
+   RENDER ALL TICKER PANELS
+══════════════════════════════════ */
+function renderAllPanels() {
+  const container = document.getElementById('ticker-panels');
+  container.innerHTML = '';
+  tabs.forEach((t, i) => {
+    const div = document.createElement('div');
+    div.id = `tp-${i}`;
+    div.style.display = i === activeTab ? '' : 'none';
+    div.innerHTML = buildPanelHTML(i, t);
+    container.appendChild(div);
+  });
+  // After insert, wire up cat dropdowns
+  tabs.forEach((_, i) => populateCatSelect(i));
+}
+
+function buildPanelHTML(i, t) {
+  const cat = getCat(t);
+  const sc  = SC[cat.signal] || SC.good;
+  return `
+  <div class="layout">
+    <!-- LEFT -->
+    <div>
+      <!-- Setup & Category -->
+      <div class="panel">
+        <div class="ph">Setup & Category</div>
+        <div class="ig">
+          <label>SETUP</label>
+          <select id="setup-${i}" onchange="onSetupChange(${i})">
+            <option value="A"  ${t.setup==='A'   ?'selected':''}>Agenda (A)</option>
+            <option value="T"  ${t.setup==='T'   ?'selected':''}>Technical (T)</option>
+            <option value="ATM"${t.setup==='ATM' ?'selected':''}>ATMShelf</option>
+            <option value="D2" ${t.setup==='D2'  ?'selected':''}>D2</option>
+            <option value="S1n"${t.setup==='S1n' ?'selected':''}>S1n</option>
+            <option value="Op100"${t.setup==='Op100'?'selected':''}>Op100</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>PRICE BRACKET</label>
+          <select id="cat-${i}" onchange="onCatChange(${i})"></select>
+          <div class="cat-meta" id="catmeta-${i}"></div>
+        </div>
+      </div>
+
+      <!-- Entry / Stop / LimitP -->
+      <div class="panel">
+        <div class="ph amber">Entry · Stop · Limit-P</div>
+        <div class="price-row">
+          <div class="price-cell">
+            <label>ENTRY PRICE</label>
+            <div class="entry-row">
+              <div class="iw">
+                <span class="ipfx">$</span>
+                <input type="number" id="entry-${i}" value="${t.entry}" placeholder="0.00" min="0" step="0.01" oninput="onEntry(${i})">
+              </div>
+              <div class="entry-arrows">
+                <button class="arrow-btn" onmousedown="startStep(${i},1)" onmouseup="stopStep()" onmouseleave="stopStep()" ontouchstart="startStep(${i},1)" ontouchend="stopStep()" title="Price up">▲</button>
+                <button class="arrow-btn" onmousedown="startStep(${i},-1)" onmouseup="stopStep()" onmouseleave="stopStep()" ontouchstart="startStep(${i},-1)" ontouchend="stopStep()" title="Price down">▼</button>
+              </div>
+            </div>
+            <div class="bracket-warn" id="bwarn-${i}">
+              <span class="warn-icon">⚠</span>
+              <span class="warn-text" id="bwarn-text-${i}"><strong>Wrong bracket!</strong></span>
+              <button class="warn-fix" id="bwarn-fix-${i}" onclick="">Switch</button>
+            </div>
+          </div>
+          <div class="price-cell">
+            <label>STOP <span style="color:var(--text3)">(×2)</span></label>
+            <div class="iw">
+              <span class="ipfx" style="color:var(--red)">$</span>
+              <input type="number" id="stop-${i}" value="${t.stop}" placeholder="0.00" min="0" step="0.01" oninput="onStop(${i})" style="border-color:rgba(255,79,79,.25);color:var(--red)">
+            </div>
+          </div>
+          <div class="price-cell">
+            <label>LIMT-P <span style="color:var(--text3)">(stop×1.07)</span></label>
+            <div class="price-derived limp" id="limp-${i}">—</div>
+          </div>
+        </div>
+
+        <!-- Prev close gap levels -->
+        <div class="gap-row">
+          <div class="ph purple" style="padding:0 0 8px;border:none;font-size:9px">Prev. day close → gap levels</div>
+          <div class="iw" style="max-width:160px">
+            <span class="ipfx">$</span>
+            <input type="number" id="prevclose-${i}" value="${t.prevClose}" placeholder="0.00" min="0" step="0.01" oninput="onPrevClose(${i})" style="font-size:15px">
+          </div>
+          <div class="gap-inputs" style="margin-top:10px">
+            <div class="gap-cell">
+              <label>20% GAP UP</label>
+              <div class="gap-result g20" id="gap20-${i}">—</div>
+            </div>
+            <div class="gap-cell">
+              <label>75% GAP UP</label>
+              <div class="gap-result g75" id="gap75-${i}">—</div>
+            </div>
+            <div class="gap-cell">
+              <label>100% GAP UP</label>
+              <div class="gap-result g100" id="gap100-${i}">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div>
+      <div class="panel">
+        <div class="ph">Position output</div>
+
+        <!-- Hero -->
+        <div class="rg">
+          <div class="rc hero">
+            <div>
+              <div class="rl">SHARES TO SHORT</div>
+              <div class="rv green big" id="r-shares-${i}">—</div>
+              <div class="rsub" id="r-shares-sub-${i}">Enter equity + category + price</div>
+            </div>
+            <div style="text-align:right">
+              <div class="rl">POSITION VALUE</div>
+              <div class="rv blue" id="r-posval-${i}">—</div>
+              <div class="rsub" id="r-posval-pct-${i}">— % of equity</div>
+            </div>
+          </div>
+
+          <div class="rc">
+            <div class="rl">RISK AMOUNT ($)</div>
+            <div class="rv red" id="r-risk-${i}">—</div>
+            <div class="rsub" id="r-alloc-${i}">— % allocation</div>
+          </div>
+          <div class="rc">
+            <div class="rl">RISK PER SHARE</div>
+            <div class="rv amber" id="r-rps-${i}">—</div>
+            <div class="rsub" id="r-dist-${i}">entry → stop dist.</div>
+          </div>
+          <div class="rc">
+            <div class="rl">ENTRY</div>
+            <div class="rv" id="r-entry-${i}">—</div>
+            <div class="rsub">short entry</div>
+          </div>
+          <div class="rc">
+            <div class="rl">STOP</div>
+            <div class="rv red" id="r-stop-${i}">—</div>
+            <div class="rsub">cover / stop out</div>
+          </div>
+          <div class="rc">
+            <div class="rl">LIMT-P</div>
+            <div class="rv purple" id="r-limp-${i}">—</div>
+            <div class="rsub">stop × 1.07 premarket</div>
+          </div>
+          <div class="rc">
+            <div class="rl">POSITION VALUE</div>
+            <div class="rv blue" id="r-posval2-${i}">—</div>
+            <div class="rsub" id="r-posval2-pct-${i}">of equity</div>
+          </div>
+        </div>
+
+        <!-- Bar -->
+        <div class="sbar">
+          <div class="rl">Price levels visualisation</div>
+          <div class="bar-track">
+            <div class="bar-fill" id="bfill-${i}" style="width:0%"></div>
+            <div class="em" id="em-${i}" style="left:30%"></div>
+            <div class="sm" id="sm-${i}" style="left:60%"></div>
+            <div class="lm" id="lm-${i}" style="left:75%"></div>
+          </div>
+          <div class="bar-lbls">
+            <span id="bleft-${i}">$0</span>
+            <span style="color:var(--green)" id="bentlbl-${i}">ENTRY</span>
+            <span style="color:var(--red)" id="bstoplbl-${i}">STOP</span>
+            <span style="color:var(--purple)" id="blimplbl-${i}">LIMT-P</span>
+            <span id="bright-${i}">$—</span>
+          </div>
+        </div>
+
+        <!-- Category stats -->
+        <div class="stats-row">
+          <div class="stat"><div class="rl">WIN RATE</div><div class="rv" id="s-wr-${i}">—</div></div>
+          <div class="stat"><div class="rl">PROF. FACTOR</div><div class="rv" id="s-pf-${i}">—</div></div>
+          <div class="stat"><div class="rl">FULL KELLY</div><div class="rv" id="s-kelly-${i}">—</div></div>
+          <div class="stat"><div class="rl">¼ KELLY</div><div class="rv" id="s-qk-${i}">—</div></div>
+          <div class="stat"><div class="rl">AVG W / L</div><div class="rv" id="s-wl-${i}" style="font-size:13px">—</div></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn primary" onclick="logTrade(${i})">+ Log trade</button>
+          <button class="btn" onclick="copyTrade(${i})">Copy</button>
+          <button class="btn" onclick="clearTab(${i})" style="margin-left:auto">Clear fields</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+/* ══════════════════════════════════
+   CAT SELECT POPULATION
+══════════════════════════════════ */
+function populateCatSelect(i) {
+  const t   = tabs[i];
+  const sel = document.getElementById(`cat-${i}`);
+  if (!sel) return;
+  sel.innerHTML = '';
+  (CATS[t.setup] || CATS['A']).forEach((c, idx) => {
+    const o = document.createElement('option');
+    o.value = idx;
+    o.textContent = c.label;
+    if (idx === t.catIdx) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+/* ══════════════════════════════════
+   CALC
+══════════════════════════════════ */
+function calcTab(i) {
+  const t       = tabs[i];
+  const cat     = getCat(t);
+  const equity  = parseFloat(document.getElementById('equity').value) || 0;
+  const entryEl = document.getElementById(`entry-${i}`);
+  const stopEl  = document.getElementById(`stop-${i}`);
+  if (!entryEl) return;
+
+  const entryVal = parseFloat(entryEl.value);
+  const sc       = SC[cat.signal] || SC.good;
+
+  // Bracket validation — warn immediately if entry is outside selected bracket
+  checkBracket(i, entryVal);
+
+  // Equity hint (update global)
+  document.getElementById('equity-hint').textContent =
+    equity > 0 ? `$${f(equity,0)} — 1R = $${f(equity * cat.alloc / 100, 0)}` : 'Enter equity';
+
+  // Auto stop = entry × 2
+  if (!isNaN(entryVal) && entryVal > 0 && !t.manualStop) {
+    stopEl.value = (entryVal * 2).toFixed(2);
+  }
+  const stopVal = parseFloat(stopEl.value);
+
+  // LimitP = stop × 1.07
+  const limtP = (!isNaN(stopVal) && stopVal > 0) ? stopVal * 1.07 : NaN;
+  document.getElementById(`limp-${i}`).textContent  = !isNaN(limtP) ? '$' + f(limtP, 2) : '—';
+  document.getElementById(`r-limp-${i}`).textContent= !isNaN(limtP) ? '$' + f(limtP, 2) : '—';
+
+  // Cat badges
+  document.getElementById(`catmeta-${i}`).innerHTML = `
+    <span class="cbadge" style="background:${sc.bg};border-color:${sc.border};color:${sc.text}">${cat.signal.toUpperCase()}</span>
+    <span class="cbadge">ALLOC ${cat.alloc}%</span>
+    <span class="cbadge">PF ${cat.pf > 0 ? cat.pf.toFixed(2)+'×':'—'}</span>
+    <span class="cbadge">WR ${cat.wr > 0 ? cat.wr+'%':'—'}</span>
+  `;
+
+  // Stats
+  const wr_el = document.getElementById(`s-wr-${i}`);
+  wr_el.textContent = cat.wr > 0 ? cat.wr + '%' : '—';
+  wr_el.className   = 'rv ' + (cat.wr >= 85 ? 'green' : cat.wr >= 75 ? 'amber' : 'red');
+  const pf_el = document.getElementById(`s-pf-${i}`);
+  pf_el.textContent = cat.pf > 0 ? (cat.pf >= 33 ? '33.8+' : cat.pf.toFixed(2)) + '×' : '—';
+  pf_el.className   = 'rv ' + (cat.pf >= 4 ? 'green' : cat.pf >= 2.5 ? 'blue' : cat.pf >= 1.5 ? 'amber' : 'red');
+  const k_el  = document.getElementById(`s-kelly-${i}`);
+  k_el.textContent  = cat.kelly !== 0 ? cat.kelly.toFixed(1) + '%' : '—';
+  k_el.className    = 'rv ' + (cat.kelly < 0 ? 'red' : cat.kelly >= 50 ? 'green' : 'amber');
+  const qk_el = document.getElementById(`s-qk-${i}`);
+  qk_el.textContent = cat.qk !== 0 ? cat.qk.toFixed(1) + '%' : '—';
+  qk_el.className   = 'rv ' + (cat.qk < 0 ? 'red' : 'blue');
+  document.getElementById(`s-wl-${i}`).textContent = cat.aw > 0 ? `+${cat.aw.toFixed(3)} / ${cat.al.toFixed(3)}R` : '—';
+
+  // Gap levels
+  calcGaps(i);
+
+  // Main calcs
+  if (!equity || isNaN(entryVal) || entryVal <= 0 || isNaN(stopVal) || stopVal <= entryVal) {
+    ['r-shares','r-posval','r-risk','r-rps','r-entry','r-stop','r-posval2'].forEach(id => {
+      const el = document.getElementById(`${id}-${i}`);
+      if (el) el.textContent = '—';
+    });
+    document.getElementById(`r-alloc-${i}`).textContent = `${cat.alloc}% of equity = $${f(equity*cat.alloc/100,0)}`;
+    return;
+  }
+
+  const riskDollars  = equity * cat.alloc / 100;
+  const riskPerShare = stopVal - entryVal;
+  const shares       = Math.floor(riskDollars / riskPerShare);
+  const positionVal  = shares * entryVal;
+  const posPct       = positionVal / equity * 100;
+
+  document.getElementById(`r-shares-${i}`).textContent     = fi(shares);
+  document.getElementById(`r-shares-sub-${i}`).textContent = `${fi(shares)} shares × $${f(entryVal)} entry`;
+  document.getElementById(`r-posval-${i}`).textContent     = '$' + f(positionVal, 0);
+  document.getElementById(`r-posval-pct-${i}`).textContent = f(posPct, 1) + '% of equity';
+  document.getElementById(`r-risk-${i}`).textContent       = '$' + f(riskDollars, 0);
+  document.getElementById(`r-alloc-${i}`).textContent      = `${cat.alloc}% of $${f(equity,0)}`;
+  document.getElementById(`r-rps-${i}`).textContent        = '$' + f(riskPerShare, 2);
+  document.getElementById(`r-dist-${i}`).textContent       = `$${f(entryVal,2)} → $${f(stopVal,2)}`;
+  document.getElementById(`r-entry-${i}`).textContent      = '$' + f(entryVal, 2);
+  document.getElementById(`r-stop-${i}`).textContent       = '$' + f(stopVal, 2);
+  document.getElementById(`r-posval2-${i}`).textContent    = '$' + f(positionVal, 0);
+  document.getElementById(`r-posval2-pct-${i}`).textContent= f(posPct,1) + '% of equity';
+
+  // Bar visual — entry, stop, limt-p
+  const allPrices = [entryVal, stopVal, !isNaN(limtP) ? limtP : stopVal];
+  const barMin    = entryVal * 0.75;
+  const barMax    = (isNaN(limtP) ? stopVal : limtP) * 1.1;
+  const range     = barMax - barMin;
+  const pct       = p => ((p - barMin) / range * 100).toFixed(1) + '%';
+
+  document.getElementById(`bfill-${i}`).style.width   = pct(isNaN(limtP) ? stopVal : limtP);
+  document.getElementById(`em-${i}`).style.left       = pct(entryVal);
+  document.getElementById(`sm-${i}`).style.left       = pct(stopVal);
+  if (!isNaN(limtP)) document.getElementById(`lm-${i}`).style.left = pct(limtP);
+  document.getElementById(`bleft-${i}`).textContent   = '$' + f(barMin,2);
+  document.getElementById(`bright-${i}`).textContent  = '$' + f(barMax,2);
+  document.getElementById(`bentlbl-${i}`).textContent = 'ENTRY $' + f(entryVal,2);
+  document.getElementById(`bstoplbl-${i}`).textContent= 'STOP $' + f(stopVal,2);
+  document.getElementById(`blimplbl-${i}`).textContent= !isNaN(limtP) ? 'LIMT-P $'+f(limtP,2) : '';
+
+  localStorage.setItem('lastEquity', equity);
+}
+
+function calcGaps(i) {
+  const pc = parseFloat(document.getElementById(`prevclose-${i}`)?.value);
+  const g20  = document.getElementById(`gap20-${i}`);
+  const g75  = document.getElementById(`gap75-${i}`);
+  const g100 = document.getElementById(`gap100-${i}`);
+  if (!g20) return;
+  if (isNaN(pc) || pc <= 0) {
+    g20.textContent = '—'; g75.textContent = '—'; g100.textContent = '—';
+    return;
+  }
+  g20.textContent  = '$' + f(pc * 1.20, 2);
+  g75.textContent  = '$' + f(pc * 1.75, 2);
+  g100.textContent = '$' + f(pc * 2.00, 2);
+}
+
+function calcActive() { calcTab(activeTab); }
+
+/* ══════════════════════════════════
+   EVENT HANDLERS
+══════════════════════════════════ */
+function onSetupChange(i) {
+  tabs[i].setup  = document.getElementById(`setup-${i}`).value;
+  tabs[i].catIdx = 0;
+  populateCatSelect(i);
+  saveTabs(); calcTab(i);
+}
+function onCatChange(i) {
+  tabs[i].catIdx = parseInt(document.getElementById(`cat-${i}`).value) || 0;
+  saveTabs(); calcTab(i);
+}
+function onEntry(i) {
+  tabs[i].entry       = document.getElementById(`entry-${i}`).value;
+  tabs[i].manualStop  = false;
+  saveTabs(); calcTab(i);
+}
+function onStop(i) {
+  tabs[i].stop       = document.getElementById(`stop-${i}`)?.value;
+  tabs[i].manualStop = true;
+  saveTabs(); calcTab(i);
+}
+function onPrevClose(i) {
+  tabs[i].prevClose = document.getElementById(`prevclose-${i}`)?.value;
+  saveTabs(); calcGaps(i);
+}
+
+/* ══════════════════════════════════
+   TAB MANAGEMENT
+══════════════════════════════════ */
+function switchTab(i) {
+  activeTab = i;
+  document.querySelectorAll('.ticker-tab').forEach((el, idx) => {
+    el.classList.toggle('active', idx === i);
+  });
+  document.querySelectorAll('[id^="tp-"]').forEach(el => { el.style.display = 'none'; });
+  const p = document.getElementById(`tp-${i}`);
+  if (p) p.style.display = '';
+  calcTab(i);
+}
+
+function renameTab(i, val) {
+  tabs[i].name = val.toUpperCase();
+  saveTabs();
+}
+
+function addTab() {
+  tabs.push(defaultTab(`TICKER ${tabs.length + 1}`));
+  saveTabs();
+  renderTabsBar();
+  renderAllPanels();
+  switchTab(tabs.length - 1);
+}
+
+function removeTab(i) {
+  if (tabs.length <= 1) return;
+  tabs.splice(i, 1);
+  if (activeTab >= tabs.length) activeTab = tabs.length - 1;
+  saveTabs();
+  renderTabsBar();
+  renderAllPanels();
+  switchTab(activeTab);
+}
+
+function clearTab(i) {
+  tabs[i].entry = ''; tabs[i].stop = ''; tabs[i].prevClose = ''; tabs[i].manualStop = false;
+  const e = document.getElementById(`entry-${i}`);
+  const s = document.getElementById(`stop-${i}`);
+  const p = document.getElementById(`prevclose-${i}`);
+  if (e) e.value = '';
+  if (s) s.value = '';
+  if (p) p.value = '';
+  saveTabs(); calcTab(i);
+}
+
+/* ══════════════════════════════════
+   TRADE LOG — 5-DAY SYSTEM
+══════════════════════════════════ */
+
+// Returns date string YYYY-MM-DD for a Date object
+function dateKey(d) {
+  return d.toISOString().slice(0,10);
+}
+
+// Returns the last N trading days (Mon–Fri) ending on/before today, most recent first
+function lastTradingDays(n) {
+  const days = [];
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  while (days.length < n) {
+    const dow = d.getDay(); // 0=Sun, 6=Sat
+    if (dow !== 0 && dow !== 6) days.push(new Date(d));
+    d.setDate(d.getDate() - 1);
+  }
+  return days; // [today, yesterday, ...]
+}
+
+function dayLabel(dateObj) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+  const d = new Date(dateObj); d.setHours(0,0,0,0);
+  if (d.getTime() === today.getTime()) return 'TODAY';
+  if (d.getTime() === yesterday.getTime()) return 'YDAY';
+  return d.toLocaleDateString('en-GB',{weekday:'short'}).toUpperCase();
+}
+
+function daySubLabel(dateObj) {
+  return new Date(dateObj).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+}
+
+// Per-day log key in localStorage
+function logKey(dk) { return `pcLog_${dk}`; }
+
+// Load log for a date key
+function loadDayLog(dk) {
+  return JSON.parse(localStorage.getItem(logKey(dk)) || '[]');
+}
+
+// Save log for a date key
+function saveDayLog(dk, records) {
+  localStorage.setItem(logKey(dk), JSON.stringify(records.slice(0,80)));
+}
+
+// Today's key
+function todayKey() { return dateKey(new Date()); }
+
+// Active state: which day tab is selected, and any imported log
+let activeDayKey   = todayKey();
+let importedLog    = null; // {label, records} when viewing an imported file
+let importedLabel  = '';
+
+function logTrade(i) {
+  const t        = tabs[i];
+  const cat      = getCat(t);
+  const equity   = parseFloat(document.getElementById('equity').value) || 0;
+  const entryVal = parseFloat(document.getElementById(`entry-${i}`)?.value);
+  const stopVal  = parseFloat(document.getElementById(`stop-${i}`)?.value);
+  if (!equity || isNaN(entryVal) || entryVal <= 0 || isNaN(stopVal) || stopVal <= entryVal) return;
+  const limtP       = stopVal * 1.07;
+  const riskPerSh   = stopVal - entryVal;
+  const riskDollars = equity * cat.alloc / 100;
+  const shares      = Math.floor(riskDollars / riskPerSh);
+  const posVal      = shares * entryVal;
+  const posPct      = (posVal / equity * 100);
+  const prevClose   = parseFloat(t.prevClose) || 0;
+  const ticker      = t.name || `T${i+1}`;
+  const now         = new Date();
+  const dk          = todayKey();
+  const record = {
+    id:        Date.now(),
+    ticker,
+    setup:     t.setup,
+    cat:       cat.cat,
+    signal:    cat.signal,
+    alloc:     cat.alloc,
+    equity,
+    entry:     entryVal,
+    stop:      stopVal,
+    limp:      limtP,
+    riskPerSh,
+    shares,
+    posVal,
+    posPct:    parseFloat(posPct.toFixed(1)),
+    risk:      riskDollars,
+    prevClose: prevClose || null,
+    gap20:     prevClose ? parseFloat((prevClose*1.20).toFixed(2)) : null,
+    gap75:     prevClose ? parseFloat((prevClose*1.75).toFixed(2)) : null,
+    gap100:    prevClose ? parseFloat((prevClose*2.00).toFixed(2)) : null,
+    wr:        cat.wr,
+    pf:        cat.pf,
+    kelly:     cat.kelly,
+    qk:        cat.qk,
+    aw:        cat.aw,
+    al:        cat.al,
+    time:      now.toTimeString().slice(0,5),
+    date:      now.toLocaleDateString('en-GB'),
+    dateKey:   dk,
+    expanded:  false,
+  };
+
+  // Save to today's day log
+  const dayLog = loadDayLog(dk);
+  dayLog.unshift(record);
+  saveDayLog(dk, dayLog);
+
+  // Also keep legacy pcLog for backwards compat
+  const legacy = JSON.parse(localStorage.getItem('pcLog') || '[]');
+  legacy.unshift(record);
+  localStorage.setItem('pcLog', JSON.stringify(legacy.slice(0,60)));
+
+  // Switch to today tab and re-render
+  activeDayKey = dk;
+  importedLog  = null;
+  renderDayTabs();
+  renderLog();
+
+  // Flash confirm
+  const logPanel = document.getElementById('log-body');
+  logPanel.style.background = 'rgba(0,208,132,0.06)';
+  setTimeout(() => logPanel.style.background = '', 500);
+}
+
+function renderDayTabs() {
+  const wrap  = document.getElementById('day-tabs');
+  if (!wrap) return;
+  const days  = lastTradingDays(5);
+  let html    = '';
+
+  days.forEach(d => {
+    const dk      = dateKey(d);
+    const records = loadDayLog(dk);
+    const isActive = !importedLog && dk === activeDayKey;
+    html += `<button class="day-tab${isActive?' active':''}" onclick="switchDayTab('${dk}')">
+      <span class="dt-label">${dayLabel(d)}</span>
+      <span class="dt-count">${daySubLabel(d)}</span>
+      <span class="dt-count">${records.length} trade${records.length!==1?'s':''}</span>
+    </button>`;
+  });
+
+  // Imported tab if active
+  if (importedLog) {
+    html += `<button class="day-tab imported active">
+      <span class="dt-label">IMPORT</span>
+      <span class="dt-count">${importedLabel}</span>
+      <span class="dt-count">${importedLog.length} trades</span>
+    </button>`;
+  }
+
+  wrap.innerHTML = html;
+}
+
+function switchDayTab(dk) {
+  activeDayKey = dk;
+  importedLog  = null;
+  renderDayTabs();
+  renderLog();
+}
+
+function renderLog() {
+  const body = document.getElementById('log-body');
+  if (!body) return;
+
+  // Determine which records to show
+  let records;
+  if (importedLog) {
+    records = importedLog;
+  } else {
+    records = loadDayLog(activeDayKey);
+  }
+
+  if (!records.length) {
+    const isToday = activeDayKey === todayKey() && !importedLog;
+    body.innerHTML = `<div class="empty-state">${isToday
+      ? 'No trades logged yet.<br>Hit "+ Log trade" inside any ticker tab.'
+      : 'No trades recorded for this day.'}</div>`;
+    return;
+  }
+
+  body.innerHTML = records.map(t => {
+    const sc = SC[t.signal] || SC.good;
+    const summaryRow = `
+      <div class="log-row log-summary" onclick="toggleExpand_day('${activeDayKey}',${t.id})" style="cursor:pointer">
+        <span>
+          <span style="color:var(--green);font-weight:700">${t.ticker}</span>
+          <span style="color:var(--text3)"> ${t.setup}/${t.cat}</span>
+        </span>
+        <span>
+          <span style="color:var(--text)">$${f(t.entry,2)}</span>
+          <span style="color:var(--text3)"> → </span>
+          <span style="color:var(--red)">$${f(t.stop,2)}</span>
+          <span style="color:var(--text3)"> · </span>
+          <span style="color:var(--purple)">$${f(t.limp,2)}</span>
+        </span>
+        <span style="font-weight:700;color:var(--text)">${fi(t.shares)}</span>
+        <span style="color:var(--red)">$${f(t.risk,0)}</span>
+        <span style="color:var(--text3);font-size:9px">${t.time}<br>${t.date||''}</span>
+        <span style="color:var(--text3);font-size:10px;text-align:right">${t.expanded?'▲':'▼'}</span>
+      </div>`;
+
+    if (!t.expanded) return summaryRow;
+
+    const detailRow = `
+      <div class="log-detail">
+        <div class="log-detail-grid">
+          <div class="ld-section">
+            <div class="ld-title">Position sizing</div>
+            <div class="ld-row"><span>Equity</span><span style="color:var(--text)">$${f(t.equity,0)}</span></div>
+            <div class="ld-row"><span>Allocation</span><span style="color:var(--amber)">${t.alloc}% of equity</span></div>
+            <div class="ld-row"><span>Risk $</span><span style="color:var(--red)">$${f(t.risk,0)}</span></div>
+            <div class="ld-row"><span>Risk / share</span><span style="color:var(--red)">$${f(t.riskPerSh,2)}</span></div>
+            <div class="ld-row"><span>Shares</span><span style="color:var(--green);font-weight:700">${fi(t.shares)}</span></div>
+            <div class="ld-row"><span>Position value</span><span style="color:var(--blue)">$${f(t.posVal,0)} (${f(t.posPct,1)}%)</span></div>
+          </div>
+          <div class="ld-section">
+            <div class="ld-title">Price levels</div>
+            <div class="ld-row"><span>Entry</span><span style="color:var(--green)">$${f(t.entry,2)}</span></div>
+            <div class="ld-row"><span>Stop (×2)</span><span style="color:var(--red)">$${f(t.stop,2)}</span></div>
+            <div class="ld-row"><span>LIMT-P (stop×1.07)</span><span style="color:var(--purple)">$${f(t.limp,2)}</span></div>
+            ${t.prevClose?`
+            <div class="ld-row" style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px"><span>Prev close</span><span>$${f(t.prevClose,2)}</span></div>
+            <div class="ld-row"><span>+20% level</span><span style="color:var(--amber)">$${f(t.gap20,2)}</span></div>
+            <div class="ld-row"><span>+75% level</span><span style="color:var(--blue)">$${f(t.gap75,2)}</span></div>
+            <div class="ld-row"><span>+100% level</span><span style="color:var(--green)">$${f(t.gap100,2)}</span></div>
+            `:'<div class="ld-row" style="color:var(--text3);font-size:10px">No prev close recorded</div>'}
+          </div>
+          <div class="ld-section">
+            <div class="ld-title">Category stats</div>
+            <div class="ld-row"><span>Setup / Cat</span><span style="background:${sc.bg};border:1px solid ${sc.border};color:${sc.text};padding:1px 6px;border-radius:4px;font-size:10px">${t.setup}/${t.cat} · ${t.signal}</span></div>
+            <div class="ld-row"><span>Win rate</span><span style="color:${t.wr>=85?'var(--green)':t.wr>=75?'var(--amber)':'var(--red)'}">${t.wr}%</span></div>
+            <div class="ld-row"><span>Profit factor</span><span style="color:${t.pf>=4?'var(--green)':t.pf>=2.5?'var(--blue)':'var(--amber)'}">${t.pf>=33?'33.8+':f(t.pf,2)}×</span></div>
+            <div class="ld-row"><span>Full Kelly</span><span style="color:${t.kelly<0?'var(--red)':t.kelly>=50?'var(--green)':'var(--amber)'}">${f(t.kelly,1)}%</span></div>
+            <div class="ld-row"><span>¼ Kelly</span><span style="color:var(--blue)">${f(t.qk,1)}%</span></div>
+            <div class="ld-row"><span>Avg win / loss</span><span><span style="color:var(--green)">+${f(t.aw,3)}</span> / <span style="color:var(--red)">${f(t.al,3)}</span>R</span></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" onclick="copyRecord_day('${activeDayKey}',${t.id})" style="font-size:10px;padding:5px 12px">Copy full record</button>
+          ${!importedLog?`<button class="btn danger" onclick="deleteRecord_day('${activeDayKey}',${t.id})" style="font-size:10px;padding:5px 10px">Delete</button>`:''}
+        </div>
+      </div>`;
+    return summaryRow + detailRow;
+  }).join('');
+}
+
+function toggleExpand_day(dk, id) {
+  let records = importedLog ? importedLog : loadDayLog(dk);
+  const rec = records.find(r => r.id === id);
+  if (!rec) return;
+  rec.expanded = !rec.expanded;
+  if (!importedLog) saveDayLog(dk, records);
+  renderLog();
+}
+
+function deleteRecord_day(dk, id) {
+  let records = loadDayLog(dk).filter(r => r.id !== id);
+  saveDayLog(dk, records);
+  renderDayTabs();
+  renderLog();
+}
+
+function copyRecord_day(dk, id) {
+  const records = importedLog || loadDayLog(dk);
+  const t = records.find(r => r.id === id);
+  if (!t) return;
+  const lines = [
+    `═══ TRADE RECORD ═══`,
+    `${t.date} ${t.time}  |  ${t.ticker}  |  ${t.setup}/${t.cat} [${(t.signal||'').toUpperCase()}]`,
+    ``,
+    `POSITION SIZING`,
+    `  Equity        : $${f(t.equity,0)}`,
+    `  Allocation    : ${t.alloc}%  →  Risk $${f(t.risk,0)}`,
+    `  Risk / share  : $${f(t.riskPerSh,2)}`,
+    `  Shares        : ${fi(t.shares)}`,
+    `  Position value: $${f(t.posVal,0)} (${f(t.posPct,1)}% of equity)`,
+    ``,
+    `PRICE LEVELS`,
+    `  Entry   : $${f(t.entry,2)}`,
+    `  Stop    : $${f(t.stop,2)}`,
+    `  LIMT-P  : $${f(t.limp,2)}`,
+    t.prevClose?`  Prev close : $${f(t.prevClose,2)}`:'',
+    t.gap20 ?`  +20% level : $${f(t.gap20,2)}`:'',
+    t.gap75 ?`  +75% level : $${f(t.gap75,2)}`:'',
+    t.gap100?`  +100% level: $${f(t.gap100,2)}`:'',
+    ``,
+    `CATEGORY STATS`,
+    `  WR: ${t.wr}%  |  PF: ${f(t.pf,2)}×  |  Kelly: ${f(t.kelly,1)}%  |  ¼K: ${f(t.qk,1)}%`,
+    `  Avg W: +${f(t.aw,3)}R  |  Avg L: ${f(t.al,3)}R`,
+  ].filter(l=>l!=='').join('\n');
+  navigator.clipboard.writeText(lines).catch(()=>{});
+}
+
+function clearDayLog() {
+  const dk = todayKey();
+  localStorage.removeItem(logKey(dk));
+  activeDayKey = dk;
+  importedLog  = null;
+  renderDayTabs();
+  renderLog();
+}
+
+// Export today's log as a JSON file download
+function exportLog() {
+  const dk      = todayKey();
+  const records = loadDayLog(dk);
+  if (!records.length) { alert('No trades to export for today.'); return; }
+  const payload = JSON.stringify({exportDate: dk, trades: records}, null, 2);
+  const blob    = new Blob([payload], {type:'application/json'});
+  const url     = URL.createObjectURL(blob);
+  const a       = document.createElement('a');
+  a.href        = url;
+  a.download    = `trades_${dk}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Import a previously exported JSON file
+function importLog(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      // Accept both {exportDate, trades:[]} format and plain []
+      const records = Array.isArray(data) ? data : (data.trades || []);
+      if (!records.length) { alert('No trades found in this file.'); return; }
+      // Restore to localStorage under its dateKey if present
+      const dk = data.exportDate || records[0]?.dateKey || 'imported';
+      if (dk !== 'imported') {
+        const existing = loadDayLog(dk);
+        // Merge: add records not already present by id
+        const existingIds = new Set(existing.map(r=>r.id));
+        const newOnes = records.filter(r=>!existingIds.has(r.id));
+        saveDayLog(dk, [...newOnes, ...existing]);
+      }
+      importedLog   = records;
+      importedLabel = file.name.replace('trades_','').replace('.json','');
+      renderDayTabs();
+      renderLog();
+    } catch {
+      alert('Invalid file format.');
+    }
+    event.target.value = ''; // Reset so same file can be re-imported
+  };
+  reader.readAsText(file);
+}
+
+// Legacy stubs (keep old code from breaking)
+function clearLog() { clearDayLog(); }
+function toggleExpand(id) { toggleExpand_day(activeDayKey, id); }
+function deleteRecord(id) { deleteRecord_day(activeDayKey, id); }
+function copyRecord(id)   { copyRecord_day(activeDayKey, id); }
+
+function copyTrade(i) {
+  const t        = tabs[i];
+  const cat      = getCat(t);
+  const equity   = document.getElementById('equity').value;
+  const entry    = document.getElementById(`entry-${i}`)?.value;
+  const stop     = document.getElementById(`stop-${i}`)?.value;
+  const limp     = document.getElementById(`limp-${i}`)?.textContent;
+  const shares   = document.getElementById(`r-shares-${i}`)?.textContent;
+  const risk     = document.getElementById(`r-risk-${i}`)?.textContent;
+  const text = `${t.name} | ${t.setup}/${cat.cat} | Entry $${entry} | Stop $${stop} | LIMT-P ${limp} | Shares ${shares} | Risk ${risk} | Equity $${equity}`;
+  navigator.clipboard.writeText(text).catch(()=>{});
+}
+
+/* ══════════════════════════════════
+   INIT
+══════════════════════════════════ */
+(function init() {
+  const saved = localStorage.getItem('lastEquity');
+  if (saved) document.getElementById('equity').value = saved;
+  renderTabsBar();
+  renderAllPanels();
+  renderDayTabs();
+  renderLog();
+  calcTab(activeTab);
+})();
+</script>
+</body>
+</html>
