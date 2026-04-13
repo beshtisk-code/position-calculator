@@ -17,6 +17,9 @@ body{background:#0d0f12;overflow-x:hidden}
 .tab-pill{font-size:10px;padding:2px 7px;border-radius:10px;margin-left:8px;font-weight:800;vertical-align:middle}
 .calc-tab.alpha .tab-pill{background:rgba(0,208,132,.15);color:#00d084}
 .calc-tab.omega .tab-pill{background:rgba(34,211,238,.15);color:#22d3ee}
+.calc-tab.custom.on{color:#4ade80;border-bottom-color:#4ade80;background:rgba(74,222,128,.04)}
+.calc-tab.custom .tab-pill{background:rgba(74,222,128,.15);color:#4ade80}
+#pane-custom{background:#0e1a12}
 .calc-pane{display:none}
 .calc-pane.on{display:block}
 #pane-alpha{background:#160e38}
@@ -27,6 +30,7 @@ body{background:#0d0f12;overflow-x:hidden}
 <div class="calc-switcher">
   <button class="calc-tab alpha on" onclick="switchCalc('alpha')">Alpha Calculator<span class="tab-pill">α</span></button>
   <button class="calc-tab omega"    onclick="switchCalc('omega')">Omega Calculator<span class="tab-pill">Ω</span></button>
+  <button class="calc-tab custom"   onclick="switchCalc('custom')">Custom Calculator<span class="tab-pill cc-pill">✦</span></button>
 </div>
 
 <!-- ══ ALPHA ══ -->
@@ -1638,7 +1642,7 @@ function getStep(val) {
 }
 
 function doStep(tabIdx, direction) {
-  const el  = document.getElementById(`entry-${tabIdx}`);
+  const el  = document.getElementById(`om-entry-${tabIdx}`);
   if (!el) return;
   const cur = parseFloat(el.value) || 0;
   const step = getStep(cur);
@@ -2569,8 +2573,573 @@ function init() {
 </script>
 </div>
 
+<!-- ══ CUSTOM PANE ══ -->
+<div class="calc-pane" id="pane-custom">
+<style>
+/* ══ CUSTOM CALCULATOR ══ */
+#pane-custom{--cc-bg:#0e1a12;--cc-bg2:#122018;--cc-bg3:#1a2e20;--cc-bg4:#243d2a;--cc-border:rgba(255,255,255,0.08);--cc-border2:rgba(255,255,255,0.14);--cc-text:#e2f0e6;--cc-text2:#7aab86;--cc-text3:#3a6647;--cc-green:#4ade80;--cc-gdim:rgba(74,222,128,0.14);--cc-red:#f87171;--cc-amber:#fbbf24;--cc-blue:#67e8f9;background:var(--cc-bg);min-height:100vh;color:var(--cc-text);font-family:'Syne',sans-serif}
+#pane-custom .cc-dot{width:9px;height:9px;border-radius:50%;background:var(--cc-green);box-shadow:0 0 8px var(--cc-green);animation:pulse 2s infinite}
+#pane-custom .cc-eq-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+#pane-custom .cc-panel{background:var(--cc-bg2);border:1px solid var(--cc-border);border-radius:12px;padding:14px 16px}
+#pane-custom .cc-label{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--cc-text3);letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
+#pane-custom .cc-input-wrap{position:relative;display:flex;align-items:center;background:var(--cc-bg3);border:1px solid var(--cc-border2);border-radius:8px;overflow:hidden}
+#pane-custom .cc-pfx{padding:0 8px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--cc-text3);border-right:1px solid var(--cc-border);flex-shrink:0}
+#pane-custom .cc-input{flex:1;background:transparent;border:none;outline:none;color:var(--cc-text);font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;padding:10px 10px;width:100%}
+#pane-custom .cc-section-title{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--cc-text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+#pane-custom .cc-fields-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+#pane-custom .cc-field-group{display:flex;flex-direction:column;gap:4px}
+#pane-custom .cc-arrow{width:26px;height:20px;background:var(--cc-bg4);border:1px solid var(--cc-border2);border-radius:5px;color:var(--cc-text2);font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s;user-select:none;-webkit-user-select:none}
+#pane-custom .cc-arrow:hover{background:var(--cc-green);color:#000}
+#pane-custom .cc-gap-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:var(--cc-text2);background:var(--cc-bg3);border:1px solid var(--cc-border);border-radius:8px;padding:9px 12px}
+#pane-custom .cc-output-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#pane-custom .cc-output-panel{border-radius:12px;padding:16px;border:1px solid var(--cc-border)}
+#pane-custom .cc-alpha-panel{background:#0f1e2e;border-color:rgba(0,208,132,.2)}
+#pane-custom .cc-omega-panel{background:#071f26;border-color:rgba(34,211,238,.2)}
+#pane-custom .cc-output-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+#pane-custom .cc-output-badge{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.06em}
+#pane-custom .cc-alpha-badge{background:rgba(0,208,132,.15);color:#00d084}
+#pane-custom .cc-omega-badge{background:rgba(34,211,238,.15);color:#22d3ee}
+#pane-custom .cc-output-eq{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cc-text3)}
+#pane-custom .cc-out-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#pane-custom .cc-out-label{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--cc-text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px}
+#pane-custom .cc-out-val{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;line-height:1}
+#pane-custom .cc-out-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cc-text3);margin-top:3px}
+#pane-custom .cc-val-green{color:#4ade80}
+#pane-custom .cc-val-blue{color:#67e8f9}
+#pane-custom .cc-val-red{color:#f87171}
+#pane-custom .cc-val-amber{color:#fbbf24}
+#pane-custom .cc-bar-wrap{margin-top:14px}
+#pane-custom .cc-bar-track{height:6px;background:rgba(255,255,255,0.07);border-radius:3px;position:relative;margin-bottom:4px}
+#pane-custom .cc-bar-fill{position:absolute;left:0;top:0;height:100%;border-radius:3px;background:linear-gradient(90deg,#4ade80,#22d3ee);transition:width .2s}
+#pane-custom .cc-bar-labels{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--cc-text3)}
+/* Accordion reference */
+#pane-custom .cc-ref-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#pane-custom .cc-ref-card{background:var(--cc-bg2);border:1px solid var(--cc-border);border-radius:12px;overflow:hidden}
+#pane-custom .cc-ref-header{padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.06em;border-bottom:1px solid var(--cc-border)}
+#pane-custom .cc-ref-alpha{background:rgba(0,208,132,.08);color:#00d084}
+#pane-custom .cc-ref-omega{background:rgba(34,211,238,.08);color:#22d3ee}
+#pane-custom .cc-acc-item{border-bottom:1px solid var(--cc-border)}
+#pane-custom .cc-acc-item:last-child{border-bottom:none}
+#pane-custom .cc-acc-btn{width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:transparent;border:none;cursor:pointer;color:var(--cc-text2);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.04em;transition:background .12s}
+#pane-custom .cc-acc-btn:hover{background:var(--cc-bg3);color:var(--cc-text)}
+#pane-custom .cc-acc-btn.open{color:var(--cc-text);background:var(--cc-bg3)}
+#pane-custom .cc-acc-arrow{font-size:9px;color:var(--cc-text3);transition:transform .2s}
+#pane-custom .cc-acc-btn.open .cc-acc-arrow{transform:rotate(180deg)}
+#pane-custom .cc-ref-table{width:100%;border-collapse:collapse;font-size:11px;font-family:'JetBrains Mono',monospace}
+#pane-custom .cc-ref-table th{padding:6px 12px;text-align:left;font-size:9px;color:var(--cc-text3);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--cc-border);font-weight:500}
+#pane-custom .cc-ref-table th:last-child,#pane-custom .cc-ref-table td.cc-ref-pct{text-align:right}
+#pane-custom .cc-ref-table td{padding:7px 12px;color:var(--cc-text2);border-bottom:1px solid rgba(255,255,255,0.04)}
+#pane-custom .cc-ref-table tr:last-child td{border-bottom:none}
+#pane-custom .cc-ref-table tr:hover td{background:rgba(255,255,255,0.03)}
+#pane-custom .cc-ref-table td:first-child{font-weight:700;color:var(--cc-text)}
+#pane-custom .cc-ref-pct{font-weight:700;color:var(--cc-text)}
+#pane-custom .cc-ref-elite{color:#4ade80 !important}
+#pane-custom .cc-ref-avoid{color:#f87171 !important}
+@media(max-width:700px){
+  #pane-custom .cc-fields-row{grid-template-columns:1fr 1fr}
+  #pane-custom .cc-output-grid{grid-template-columns:1fr}
+  #pane-custom .cc-eq-row{grid-template-columns:1fr}
+  #pane-custom .cc-ref-grid{grid-template-columns:1fr}
+}
+</style>
+
+<div style="max-width:900px;margin:0 auto;padding:20px 20px 40px">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div>
+      <h1 style="font-size:22px;font-weight:800;letter-spacing:-.3px">Custom Calculator</h1>
+      <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--cc-text3);letter-spacing:.08em;margin-top:3px">MANUAL SIZING · DUAL ACCOUNT</div>
+    </div>
+    <div class="cc-dot"></div>
+  </div>
+
+  <!-- Equity + Risk row -->
+  <div class="cc-eq-row">
+    <div class="cc-panel">
+      <div class="cc-label">ALPHA EQUITY</div>
+      <div class="cc-input-wrap" style="margin-bottom:10px">
+        <span class="cc-pfx">$</span>
+        <input class="cc-input" type="number" id="cc-alpha-equity" value="20000" min="0" step="100" oninput="ccCalc()">
+      </div>
+      <div class="cc-label">ALPHA RISK %</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="cc-input-wrap" style="flex:1;position:relative">
+          <input class="cc-input" type="number" id="cc-alpha-risk" value="30" min="1" max="100" step="1" oninput="ccCalc()" style="padding-left:12px">
+          <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--cc-text2)">%</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <button class="cc-arrow" onmousedown="ccStartRiskStep('alpha',1)" onmouseup="ccStopStep()" onmouseleave="ccStopStep()" ontouchstart="ccStartRiskStep('alpha',1)" ontouchend="ccStopStep()">▲</button>
+          <button class="cc-arrow" onmousedown="ccStartRiskStep('alpha',-1)" onmouseup="ccStopStep()" onmouseleave="ccStopStep()" ontouchstart="ccStartRiskStep('alpha',-1)" ontouchend="ccStopStep()">▼</button>
+        </div>
+      </div>
+    </div>
+    <div class="cc-panel">
+      <div class="cc-label">OMEGA EQUITY</div>
+      <div class="cc-input-wrap" style="margin-bottom:10px">
+        <span class="cc-pfx">$</span>
+        <input class="cc-input" type="number" id="cc-omega-equity" value="20000" min="0" step="100" oninput="ccCalc()">
+      </div>
+      <div class="cc-label">OMEGA RISK %</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="cc-input-wrap" style="flex:1;position:relative">
+          <input class="cc-input" type="number" id="cc-omega-risk" value="30" min="1" max="100" step="1" oninput="ccCalc()" style="padding-left:12px">
+          <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--cc-text2)">%</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <button class="cc-arrow" onmousedown="ccStartRiskStep('omega',1)" onmouseup="ccStopStep()" onmouseleave="ccStopStep()" ontouchstart="ccStartRiskStep('omega',1)" ontouchend="ccStopStep()">▲</button>
+          <button class="cc-arrow" onmousedown="ccStartRiskStep('omega',-1)" onmouseup="ccStopStep()" onmouseleave="ccStopStep()" ontouchstart="ccStartRiskStep('omega',-1)" ontouchend="ccStopStep()">▼</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entry / Stop / LimitP -->
+  <div class="cc-panel" style="margin-bottom:12px">
+    <div class="cc-section-title">▸ ENTRY · STOP · LIMT-P</div>
+    <div class="cc-fields-row">
+      <div class="cc-field-group">
+        <div class="cc-label">ENTRY PRICE</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="cc-input-wrap" style="flex:1">
+            <span class="cc-pfx">$</span>
+            <input class="cc-input" type="number" id="cc-entry" value="" placeholder="0.00" min="0" step="0.01" oninput="ccOnEntry()">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <button class="cc-arrow" onmousedown="ccStartStep(1)" onmouseup="ccStopStep()" onmouseleave="ccStopStep()" ontouchstart="ccStartStep(1)" ontouchend="ccStopStep()">▲</button>
+            <button class="cc-arrow" onmousedown="ccStartStep(-1)" onmouseup="ccStopStep()" onmouseleave="ccStopStep()" ontouchstart="ccStartStep(-1)" ontouchend="ccStopStep()">▼</button>
+          </div>
+        </div>
+      </div>
+      <div class="cc-field-group">
+        <div class="cc-label">STOP <span style="color:var(--cc-text3);font-size:9px">(×2 AUTO)</span></div>
+        <div class="cc-input-wrap">
+          <span class="cc-pfx">$</span>
+          <input class="cc-input" type="number" id="cc-stop" value="" placeholder="0.00" min="0" step="0.01" oninput="ccOnStop()">
+        </div>
+      </div>
+      <div class="cc-field-group">
+        <div class="cc-label">LIMT-P <span style="color:var(--cc-text3);font-size:9px">(stop×1.07)</span></div>
+        <div class="cc-input-wrap">
+          <span class="cc-pfx">$</span>
+          <input class="cc-input" type="number" id="cc-limp" placeholder="—" readonly style="opacity:.6">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prev Day Close + Gap Levels -->
+  <div class="cc-panel" style="margin-bottom:12px">
+    <div class="cc-section-title">▸ PREV. DAY CLOSE + GAP LEVELS</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="cc-input-wrap" style="width:140px">
+        <span class="cc-pfx">$</span>
+        <input class="cc-input" type="number" id="cc-prevclose" placeholder="0.00" min="0" step="0.01" oninput="ccCalcGaps()">
+      </div>
+      <div style="display:flex;gap:10px;flex:1;min-width:200px">
+        <div style="flex:1"><div class="cc-label" style="margin-bottom:4px">20% GAP UP</div><div class="cc-gap-val" id="cc-gap20">—</div></div>
+        <div style="flex:1"><div class="cc-label" style="margin-bottom:4px">75% GAP UP</div><div class="cc-gap-val" id="cc-gap75">—</div></div>
+        <div style="flex:1"><div class="cc-label" style="margin-bottom:4px">100% GAP UP</div><div class="cc-gap-val" id="cc-gap100">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Position Output -->
+  <div class="cc-section-title" style="margin-bottom:10px">▸ POSITION OUTPUT</div>
+  <div class="cc-output-grid" style="margin-bottom:24px">
+
+    <div class="cc-output-panel cc-alpha-panel">
+      <div class="cc-output-header">
+        <span class="cc-output-badge cc-alpha-badge">α ALPHA</span>
+        <span class="cc-output-eq" id="cc-alpha-eq-display">$20,000</span>
+      </div>
+      <div class="cc-out-row">
+        <div class="cc-out-block">
+          <div class="cc-out-label">SHARES TO SHORT</div>
+          <div class="cc-out-val cc-val-green" id="cc-alpha-shares">—</div>
+          <div class="cc-out-sub" id="cc-alpha-shares-sub"></div>
+        </div>
+        <div class="cc-out-block">
+          <div class="cc-out-label">POSITION VALUE</div>
+          <div class="cc-out-val cc-val-blue" id="cc-alpha-posval">—</div>
+          <div class="cc-out-sub" id="cc-alpha-posval-pct"></div>
+        </div>
+      </div>
+      <div class="cc-out-row" style="margin-top:8px">
+        <div class="cc-out-block">
+          <div class="cc-out-label">RISK AMOUNT ($)</div>
+          <div class="cc-out-val cc-val-red" id="cc-alpha-risk">—</div>
+          <div class="cc-out-sub" id="cc-alpha-risk-sub"></div>
+        </div>
+        <div class="cc-out-block">
+          <div class="cc-out-label">RISK PER SHARE</div>
+          <div class="cc-out-val cc-val-amber" id="cc-alpha-rps">—</div>
+        </div>
+      </div>
+      <div class="cc-bar-wrap" id="cc-alpha-bar-wrap" style="display:none">
+        <div class="cc-bar-track"><div class="cc-bar-fill" id="cc-alpha-bar-fill"></div></div>
+        <div class="cc-bar-labels">
+          <span id="cc-alpha-bar-entry">ENTRY</span>
+          <span id="cc-alpha-bar-stop">STOP</span>
+          <span id="cc-alpha-bar-limp">LIMT-P</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cc-output-panel cc-omega-panel">
+      <div class="cc-output-header">
+        <span class="cc-output-badge cc-omega-badge">Ω OMEGA</span>
+        <span class="cc-output-eq" id="cc-omega-eq-display">$20,000</span>
+      </div>
+      <div class="cc-out-row">
+        <div class="cc-out-block">
+          <div class="cc-out-label">SHARES TO SHORT</div>
+          <div class="cc-out-val cc-val-green" id="cc-omega-shares">—</div>
+          <div class="cc-out-sub" id="cc-omega-shares-sub"></div>
+        </div>
+        <div class="cc-out-block">
+          <div class="cc-out-label">POSITION VALUE</div>
+          <div class="cc-out-val cc-val-blue" id="cc-omega-posval">—</div>
+          <div class="cc-out-sub" id="cc-omega-posval-pct"></div>
+        </div>
+      </div>
+      <div class="cc-out-row" style="margin-top:8px">
+        <div class="cc-out-block">
+          <div class="cc-out-label">RISK AMOUNT ($)</div>
+          <div class="cc-out-val cc-val-red" id="cc-omega-risk">—</div>
+          <div class="cc-out-sub" id="cc-omega-risk-sub"></div>
+        </div>
+        <div class="cc-out-block">
+          <div class="cc-out-label">RISK PER SHARE</div>
+          <div class="cc-out-val cc-val-amber" id="cc-omega-rps">—</div>
+        </div>
+      </div>
+      <div class="cc-bar-wrap" id="cc-omega-bar-wrap" style="display:none">
+        <div class="cc-bar-track"><div class="cc-bar-fill" id="cc-omega-bar-fill"></div></div>
+        <div class="cc-bar-labels">
+          <span id="cc-omega-bar-entry">ENTRY</span>
+          <span id="cc-omega-bar-stop">STOP</span>
+          <span id="cc-omega-bar-limp">LIMT-P</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end output grid -->
+
+  <!-- Risk Reference Accordion -->
+  <div class="cc-section-title" style="margin-bottom:12px">▸ RISK ALLOCATION REFERENCE</div>
+  <div class="cc-ref-grid">
+
+    <div class="cc-ref-card">
+      <div class="cc-ref-header cc-ref-alpha">α ALPHA</div>
+      <div class="cc-acc-item">
+        <button class="cc-acc-btn" onclick="ccToggleAcc(this)"><span>Agenda (A)</span><span class="cc-acc-arrow">▼</span></button>
+        <div class="cc-acc-body" style="display:none"><table class="cc-ref-table"><thead><tr><th>Bracket</th><th>Price</th><th>Risk %</th></tr></thead><tbody>
+          <tr><td>A</td><td>$1.01–$2.00</td><td class="cc-ref-pct">17%</td></tr>
+          <tr><td>B</td><td>$3.01–$4.00</td><td class="cc-ref-pct">22%</td></tr>
+          <tr><td>C</td><td>$2.01–$3.00</td><td class="cc-ref-pct">20%</td></tr>
+          <tr><td>Ca</td><td>$4.01–$6.00</td><td class="cc-ref-pct">12%</td></tr>
+          <tr><td>Cb</td><td>$6.01+</td><td class="cc-ref-pct cc-ref-elite">34%</td></tr>
+        </tbody></table></div>
+      </div>
+      <div class="cc-acc-item">
+        <button class="cc-acc-btn" onclick="ccToggleAcc(this)"><span>Technical (T)</span><span class="cc-acc-arrow">▼</span></button>
+        <div class="cc-acc-body" style="display:none"><table class="cc-ref-table"><thead><tr><th>Bracket</th><th>Price</th><th>Risk %</th></tr></thead><tbody>
+          <tr><td>D</td><td>$1.01–$3.00</td><td class="cc-ref-pct">25%</td></tr>
+          <tr><td>E</td><td>$4.01–$6.00</td><td class="cc-ref-pct cc-ref-elite">30%</td></tr>
+          <tr><td>F</td><td>$3.01–$4.00</td><td class="cc-ref-pct cc-ref-avoid">6%</td></tr>
+          <tr><td>Fa</td><td>$6.01–$11.00</td><td class="cc-ref-pct">13%</td></tr>
+          <tr><td>Fb</td><td>$11.01+</td><td class="cc-ref-pct">18%</td></tr>
+        </tbody></table></div>
+      </div>
+      <div class="cc-acc-item">
+        <button class="cc-acc-btn" onclick="ccToggleAcc(this)"><span>ATM/Shelf</span><span class="cc-acc-arrow">▼</span></button>
+        <div class="cc-acc-body" style="display:none"><table class="cc-ref-table"><thead><tr><th>Bracket</th><th>Price</th><th>Risk %</th></tr></thead><tbody>
+          <tr><td>G</td><td>$1.25–$4.00</td><td class="cc-ref-pct">30%</td></tr>
+          <tr><td>H</td><td>$4.01–$7.00</td><td class="cc-ref-pct cc-ref-elite">34%</td></tr>
+          <tr><td>L</td><td>$7.01+</td><td class="cc-ref-pct cc-ref-elite">34%</td></tr>
+        </tbody></table></div>
+      </div>
+      <div class="cc-acc-item">
+        <button class="cc-acc-btn" onclick="ccToggleAcc(this)"><span>D2</span><span class="cc-acc-arrow">▼</span></button>
+        <div class="cc-acc-body" style="display:none"><table class="cc-ref-table"><thead><tr><th>Bracket</th><th>Price</th><th>Risk %</th></tr></thead><tbody>
+          <tr><td>M1</td><td>$1.25–$3.00</td><td class="cc-ref-pct cc-ref-avoid">8%</td></tr>
+          <tr><td>M2</td><td>$3.01–$6.00</td><td class="cc-ref-pct">16%</td></tr>
+          <tr><td>M3</td><td>$6.01–$11.00</td><td class="cc-ref-pct cc-ref-elite">32%</td></tr>
+          <tr><td>M4</td><td>$11.01+</td><td class="cc-ref-pct">20%</td></tr>
+        </tbody></table></div>
+      </div>
+      <div class="cc-acc-item">
+        <button class="cc-acc-btn" onclick="ccToggleAcc(this)"><span>S1n &amp; Op100</span><span class="cc-acc-arrow">▼</span></button>
+        <div class="cc-acc-body" style="display:none"><table class="cc-ref-table"><thead><tr><th>Bracket</th><th>Price</th><th>Risk %</th></tr></thead><tbody>
+          <tr><td>As1</td><td>$1.05+</td><td class="cc-ref-pct">10%</td></tr>
+          <tr><td>Top1</td><td>$1.05+</td><td class="cc-ref-pct cc-ref-elite">35%</td></tr>
+        </tbody></table></div>
+      </div>
+    </div>
+
+    <div class="cc-ref-card">
+      <div class="cc-ref-header cc-ref-omega">Ω OMEGA</div>
+      <div class="cc-acc-item">
+        <button class="cc-acc-btn" onclick="ccToggleAcc(this)"><span>Agenda (A)</span><span class="cc-acc-arrow">▼</span></button>
+        <div class="cc-acc-body" style="display:none"><table class="cc-ref-table"><thead><tr><th>Bracket</th><th>Price</th><th>Risk %</th></tr></thead><tbody>
+          <tr><td>A</td><td>$2.00–$4.00</td><td class="cc-ref-pct cc-ref-elite">30%</td></tr>
+          <tr><td>B</td><td>$4.01–$6.00</td><td class="cc-ref-pct cc-ref-elite">30%</td></tr>
+          <tr><td>C</td><td>$6.01–$10.00</td><td class="cc-ref-pct">28%</td></tr>
+          <tr><td>D</td><td>&lt;$2.00</td><td class="cc-ref-pct">15%</td></tr>
+          <tr><td>E</td><td>&gt;$10.00</td><td class="cc-ref-pct cc-ref-avoid">1% ⚠</td></tr>
+        </tbody></table></div>
+      </div>
+      <div class="cc-acc-item">
+        <button class="cc-acc-btn" onclick="ccToggleAcc(this)"><span>Technical (T)</span><span class="cc-acc-arrow">▼</span></button>
+        <div class="cc-acc-body" style="display:none"><table class="cc-ref-table"><thead><tr><th>Bracket</th><th>Price</th><th>Risk %</th></tr></thead><tbody>
+          <tr><td>F</td><td>$2.00–$4.00</td><td class="cc-ref-pct">3%</td></tr>
+          <tr><td>G</td><td>$4.01–$6.00</td><td class="cc-ref-pct cc-ref-elite">30%</td></tr>
+          <tr><td>H</td><td>$6.01–$10.00</td><td class="cc-ref-pct">20%</td></tr>
+          <tr><td>M</td><td>&lt;$2.00</td><td class="cc-ref-pct cc-ref-avoid">1% ⚠</td></tr>
+          <tr><td>N</td><td>&gt;$10.00</td><td class="cc-ref-pct cc-ref-elite">30%</td></tr>
+        </tbody></table></div>
+      </div>
+      <div class="cc-acc-item">
+        <button class="cc-acc-btn" onclick="ccToggleAcc(this)"><span>ATM/Shelf</span><span class="cc-acc-arrow">▼</span></button>
+        <div class="cc-acc-body" style="display:none"><table class="cc-ref-table"><thead><tr><th>Bracket</th><th>Price</th><th>Risk %</th></tr></thead><tbody>
+          <tr><td>Aa</td><td>$2.00–$4.00</td><td class="cc-ref-pct cc-ref-avoid">1% ⚠</td></tr>
+          <tr><td>Ab</td><td>$4.01–$6.00</td><td class="cc-ref-pct cc-ref-elite">30%</td></tr>
+          <tr><td>Ac</td><td>$6.01–$10.00</td><td class="cc-ref-pct">20%</td></tr>
+          <tr><td>Ad</td><td>&lt;$2.00</td><td class="cc-ref-pct cc-ref-avoid">1% ⚠</td></tr>
+          <tr><td>Ae</td><td>&gt;$10.00</td><td class="cc-ref-pct cc-ref-elite">30%</td></tr>
+        </tbody></table></div>
+      </div>
+      <div class="cc-acc-item">
+        <button class="cc-acc-btn" onclick="ccToggleAcc(this)"><span>D2</span><span class="cc-acc-arrow">▼</span></button>
+        <div class="cc-acc-body" style="display:none"><table class="cc-ref-table"><thead><tr><th>Bracket</th><th>Price</th><th>Risk %</th></tr></thead><tbody>
+          <tr><td>Tf</td><td>$2.00–$4.00</td><td class="cc-ref-pct cc-ref-avoid">1% ⚠</td></tr>
+          <tr><td>Tg</td><td>$4.01–$6.00</td><td class="cc-ref-pct cc-ref-elite">30%</td></tr>
+          <tr><td>Th</td><td>$6.01–$10.00</td><td class="cc-ref-pct cc-ref-elite">30%</td></tr>
+          <tr><td>Tm</td><td>&lt;$2.00</td><td class="cc-ref-pct cc-ref-avoid">1% ⚠</td></tr>
+          <tr><td>Tn</td><td>&gt;$10.00</td><td class="cc-ref-pct">22%</td></tr>
+        </tbody></table></div>
+      </div>
+      <div class="cc-acc-item">
+        <button class="cc-acc-btn" onclick="ccToggleAcc(this)"><span>S1n &amp; Op100</span><span class="cc-acc-arrow">▼</span></button>
+        <div class="cc-acc-body" style="display:none"><table class="cc-ref-table"><thead><tr><th>Bracket</th><th>Price</th><th>Risk %</th></tr></thead><tbody>
+          <tr><td>As1</td><td>$1.05+</td><td class="cc-ref-pct">25%</td></tr>
+          <tr><td>Top1</td><td>$1.05+</td><td class="cc-ref-pct cc-ref-elite">34%</td></tr>
+        </tbody></table></div>
+      </div>
+    </div>
+
+  </div><!-- end ref grid -->
+
+</div><!-- end content -->
+
 <script>
-let omegaInited = false;
+/* ══ CUSTOM CALCULATOR JS ══ */
+(function() {
+
+let cc_manualStop = false;
+let cc_stepTimer  = null;
+let cc_stepInt    = null;
+
+function ccF(n, d=2) {
+  return isNaN(n) ? '—' : n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function ccFI(n) {
+  return isNaN(n) ? '—' : Math.round(n).toLocaleString('en-US');
+}
+
+function ccGetStep(price) {
+  if (price < 4)  return 0.01;
+  if (price < 10) return 0.02;
+  return 0.03;
+}
+
+function ccOnEntry() {
+  cc_manualStop = false;
+  ccCalc();
+}
+function ccOnStop() {
+  cc_manualStop = true;
+  ccCalc();
+}
+
+function ccStartStep(dir) {
+  ccDoStep(dir);
+  cc_stepTimer = setTimeout(() => {
+    cc_stepInt = setInterval(() => ccDoStep(dir), 80);
+  }, 400);
+}
+function ccDoStep(dir) {
+  const el = document.getElementById('cc-entry');
+  if (!el) return;
+  const cur  = parseFloat(el.value) || 0;
+  const step = ccGetStep(cur);
+  const next = Math.max(0, parseFloat((cur + dir * step).toFixed(2)));
+  el.value   = next.toFixed(2);
+  cc_manualStop = false;
+  ccCalc();
+}
+function ccStartRiskStep(account, dir) {
+  ccDoRiskStep(account, dir);
+  cc_stepTimer = setTimeout(() => {
+    cc_stepInt = setInterval(() => ccDoRiskStep(account, dir), 80);
+  }, 400);
+}
+function ccDoRiskStep(account, dir) {
+  const id = account === 'alpha' ? 'cc-alpha-risk' : 'cc-omega-risk';
+  const el = document.getElementById(id);
+  if (!el) return;
+  const cur  = parseFloat(el.value) || 30;
+  const next = Math.min(100, Math.max(1, cur + dir));
+  el.value   = next;
+  ccCalc();
+}
+function ccStopStep() {
+  clearTimeout(cc_stepTimer);
+  clearInterval(cc_stepInt);
+}
+
+function ccCalcGaps() {
+  const pc = parseFloat(document.getElementById('cc-prevclose')?.value);
+  const g20  = document.getElementById('cc-gap20');
+  const g75  = document.getElementById('cc-gap75');
+  const g100 = document.getElementById('cc-gap100');
+  if (!g20) return;
+  if (isNaN(pc) || pc <= 0) {
+    g20.textContent = '—'; g75.textContent = '—'; g100.textContent = '—';
+    return;
+  }
+  g20.textContent  = '$' + ccF(pc * 1.20);
+  g75.textContent  = '$' + ccF(pc * 1.75);
+  g100.textContent = '$' + ccF(pc * 2.00);
+}
+
+function ccCalc() {
+  const alphaEq = parseFloat(document.getElementById('cc-alpha-equity')?.value) || 0;
+  const omegaEq = parseFloat(document.getElementById('cc-omega-equity')?.value) || 0;
+  const entry   = parseFloat(document.getElementById('cc-entry')?.value) || 0;
+  const alphaRisk = parseFloat(document.getElementById('cc-alpha-risk')?.value) || 30;
+  const omegaRisk = parseFloat(document.getElementById('cc-omega-risk')?.value) || 30;
+
+  // Stop: auto = entry * 2, or manual
+  let stop;
+  const stopEl = document.getElementById('cc-stop');
+  if (cc_manualStop && stopEl && parseFloat(stopEl.value) > 0) {
+    stop = parseFloat(stopEl.value);
+  } else {
+    stop = entry * 2;
+    if (stopEl && entry > 0) stopEl.value = stop.toFixed(2);
+  }
+
+  // LimitP
+  const limp = stop > 0 ? stop * 1.07 : 0;
+  const limpEl = document.getElementById('cc-limp');
+  if (limpEl) limpEl.value = limp > 0 ? limp.toFixed(2) : '';
+
+  // Update equity displays
+  const aeq = document.getElementById('cc-alpha-eq-display');
+  const oeq = document.getElementById('cc-omega-eq-display');
+  if (aeq) aeq.textContent = '$' + ccFI(alphaEq);
+  if (oeq) oeq.textContent = '$' + ccFI(omegaEq);
+
+  // Calc for each account
+  function calcSide(equity, riskPct, prefix) {
+    const riskDollars = equity * riskPct / 100;
+    const riskPerSh   = stop > entry ? stop - entry : 0;
+    const shares      = riskPerSh > 0 && entry > 0 ? Math.floor(riskDollars / riskPerSh) : 0;
+    const posVal      = shares * entry;
+    const posPct      = equity > 0 ? posVal / equity * 100 : 0;
+
+    const setEl = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+
+    setEl(`cc-${prefix}-shares`,    shares > 0 ? ccFI(shares) : '—');
+    setEl(`cc-${prefix}-shares-sub`,shares > 0 ? `${riskPct}% risk · entry $${ccF(entry)}` : 'Enter equity + price');
+    setEl(`cc-${prefix}-posval`,    posVal > 0 ? '$' + ccFI(posVal) : '—');
+    setEl(`cc-${prefix}-posval-pct`,posVal > 0 ? `${ccF(posPct,1)}% of equity` : '');
+    setEl(`cc-${prefix}-risk`,      riskDollars > 0 ? '$' + ccFI(riskDollars) : '—');
+    setEl(`cc-${prefix}-risk-sub`,  `${riskPct}% of $${ccFI(equity)}`);
+    setEl(`cc-${prefix}-rps`,       riskPerSh > 0 ? '$' + ccF(riskPerSh) : '—');
+
+    // Bar
+    const barWrap = document.getElementById(`cc-${prefix}-bar-wrap`);
+    const barFill = document.getElementById(`cc-${prefix}-bar-fill`);
+    const entryLbl = document.getElementById(`cc-${prefix}-bar-entry`);
+    const stopLbl  = document.getElementById(`cc-${prefix}-bar-stop`);
+    const limpLbl  = document.getElementById(`cc-${prefix}-bar-limp`);
+    if (barWrap && entry > 0 && stop > 0) {
+      barWrap.style.display = '';
+      const barMax  = limp * 1.05;
+      const stopPct = Math.min(stop / barMax * 100, 100);
+      if (barFill) barFill.style.width = stopPct + '%';
+      if (entryLbl) entryLbl.textContent = 'ENTRY $' + ccF(entry);
+      if (stopLbl)  stopLbl.textContent  = 'STOP $'  + ccF(stop);
+      if (limpLbl)  limpLbl.textContent  = 'LIMT-P $' + ccF(limp);
+    } else if (barWrap) {
+      barWrap.style.display = 'none';
+    }
+  }
+
+  calcSide(alphaEq, alphaRisk, 'alpha');
+  calcSide(omegaEq, omegaRisk, 'omega');
+
+  // Save state
+  try {
+    localStorage.setItem('ccState', JSON.stringify({
+      alphaEq, omegaEq,
+      entry: document.getElementById('cc-entry')?.value || '',
+      stop:  stopEl?.value || '',
+      alphaRisk, omegaRisk,
+      prevClose: document.getElementById('cc-prevclose')?.value || '',
+      manualStop: cc_manualStop,
+    }));
+  } catch(e) {}
+
+  ccCalcGaps();
+}
+
+function ccInit() {
+  // Restore saved state
+  try {
+    const saved = JSON.parse(localStorage.getItem('ccState') || 'null');
+    if (saved) {
+      const set = (id, val) => { const el = document.getElementById(id); if(el && val !== undefined && val !== '') el.value = val; };
+      set('cc-alpha-equity', saved.alphaEq);
+      set('cc-omega-equity', saved.omegaEq);
+      set('cc-entry',        saved.entry);
+      set('cc-stop',         saved.stop);
+      set('cc-alpha-risk',   saved.alphaRisk || saved.risk || 30);
+      set('cc-omega-risk',   saved.omegaRisk || saved.risk || 30);
+      set('cc-prevclose',    saved.prevClose);
+      cc_manualStop = saved.manualStop || false;
+    }
+  } catch(e) {}
+  ccCalc();
+  ccCalcGaps();
+}
+
+function ccToggleAcc(btn) {
+  const body = btn.nextElementSibling;
+  const isOpen = btn.classList.contains('open');
+  btn.classList.toggle('open', !isOpen);
+  body.style.display = isOpen ? 'none' : '';
+}
+window.ccToggleAcc    = ccToggleAcc;
+window.ccCalc         = ccCalc;
+window.ccOnEntry      = ccOnEntry;
+window.ccOnStop       = ccOnStop;
+window.ccCalcGaps     = ccCalcGaps;
+window.ccStartStep    = ccStartStep;
+window.ccStopStep     = ccStopStep;
+window.ccStartRiskStep = ccStartRiskStep;
+window.ccInit         = ccInit;
+
+})();
+</script>
+</div></div>
+
+<script>
+let omegaInited  = false;
+let customInited = false;
 function switchCalc(which) {
   document.querySelectorAll('.calc-tab').forEach(t => t.classList.remove('on'));
   document.querySelectorAll('.calc-pane').forEach(p => p.classList.remove('on'));
@@ -2580,6 +3149,10 @@ function switchCalc(which) {
   if (which === 'omega' && !omegaInited) {
     omegaInited = true;
     if (typeof window.o_init === 'function') window.o_init();
+  }
+  if (which === 'custom' && !customInited) {
+    customInited = true;
+    if (typeof window.ccInit === 'function') window.ccInit();
   }
 }
 (function(){
