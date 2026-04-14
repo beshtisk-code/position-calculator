@@ -25,12 +25,198 @@ body{background:#0d0f12;overflow-x:hidden}
 #pane-alpha{background:#160e38}
 #pane-omega{background:#051a1f}
 </style>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDaSqgXaxUO1AVJFHjmGJtbQfO_YCWf4WU",
+    authDomain: "trading-system-enki.firebaseapp.com",
+    databaseURL: "https://trading-system-enki-default-rtdb.firebaseio.com",
+    projectId: "trading-system-enki",
+    storageBucket: "trading-system-enki.firebasestorage.app",
+    messagingSenderId: "410422069967",
+    appId: "1:410422069967:web:d1218e4615d7b36ffec5ba"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  // ── Debounce helper ──
+  function debounce(fn, ms) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  }
+
+  // ── SYNC PATHS ──
+  // /alpha  — alpha tabs + equity
+  // /omega  — omega tabs + equity
+  // /custom — custom calculator state
+  // /logs/YYYY-MM-DD — per-day trade logs (alpha)
+  // /ologs/YYYY-MM-DD — per-day trade logs (omega)
+
+  let suppressAlpha  = false;
+  let suppressOmega  = false;
+  let suppressCustom = false;
+  let fbReady        = false;
+
+  // ── Push helpers ──
+  const pushAlpha = debounce(() => {
+    if (suppressAlpha) return;
+    const equity = document.getElementById('equity')?.value;
+    const tabs   = localStorage.getItem('pcTabs');
+    set(ref(db, 'alpha/state'), { equity, tabs, ts: Date.now() });
+  }, 800);
+
+  const pushOmega = debounce(() => {
+    if (suppressOmega) return;
+    const equity = document.getElementById('om-equity')?.value;
+    const tabs   = localStorage.getItem('omegaTabs');
+    set(ref(db, 'omega/state'), { equity, tabs, ts: Date.now() });
+  }, 800);
+
+  const pushCustom = debounce(() => {
+    if (suppressCustom) return;
+    const state = localStorage.getItem('ccState');
+    set(ref(db, 'custom/state'), { state, ts: Date.now() });
+  }, 800);
+
+  // Push trade logs (alpha)
+  window.fbPushAlphaLog = (dk, records) => {
+    set(ref(db, 'logs/' + dk), records);
+  };
+  // Push trade logs (omega)
+  window.fbPushOmegaLog = (dk, records) => {
+    set(ref(db, 'ologs/' + dk), records);
+  };
+
+  // ── Listen for remote changes ──
+  onValue(ref(db, 'alpha/state'), snap => {
+    const d = snap.val();
+    if (!d || !fbReady) return;
+    suppressAlpha = true;
+    if (d.equity !== undefined) {
+      const el = document.getElementById('equity');
+      if (el && el.value != d.equity) el.value = d.equity;
+      localStorage.setItem('alphaLastEquity', d.equity);
+    }
+    if (d.tabs) {
+      localStorage.setItem('pcTabs', d.tabs);
+    }
+    suppressAlpha = false;
+    if (typeof renderTabsBar === 'function') { renderTabsBar(); renderAllPanels(); calcTab(activeTab); }
+  });
+
+  onValue(ref(db, 'omega/state'), snap => {
+    const d = snap.val();
+    if (!d || !fbReady) return;
+    suppressOmega = true;
+    if (d.equity !== undefined) {
+      const el = document.getElementById('om-equity');
+      if (el && el.value != d.equity) el.value = d.equity;
+      localStorage.setItem('omegaLastEquity', d.equity);
+    }
+    if (d.tabs) {
+      localStorage.setItem('omegaTabs', d.tabs);
+    }
+    suppressOmega = false;
+    if (typeof window.o_renderTabsBar === 'function') { window.o_renderTabsBar(); window.o_renderAllPanels(); window.o_calcTab(window.o_activeTab || 0); }
+  });
+
+  onValue(ref(db, 'custom/state'), snap => {
+    const d = snap.val();
+    if (!d || !fbReady) return;
+    suppressCustom = true;
+    if (d.state) localStorage.setItem('ccState', d.state);
+    suppressCustom = false;
+    if (typeof window.ccInit === 'function') window.ccInit();
+  });
+
+  // Sync trade logs both ways
+  onValue(ref(db, 'logs'), snap => {
+    const d = snap.val();
+    if (!d || !fbReady) return;
+    Object.entries(d).forEach(([dk, records]) => {
+      const key = 'pcLog_' + dk;
+      const local = JSON.parse(localStorage.getItem(key) || '[]');
+      // Merge: keep whichever has more records
+      if (records.length > local.length) {
+        localStorage.setItem(key, JSON.stringify(records));
+        if (typeof renderLog === 'function') renderLog();
+      }
+    });
+  });
+
+  onValue(ref(db, 'ologs'), snap => {
+    const d = snap.val();
+    if (!d || !fbReady) return;
+    Object.entries(d).forEach(([dk, records]) => {
+      const key = 'omegaLog_' + dk;
+      const local = JSON.parse(localStorage.getItem(key) || '[]');
+      if (records.length > local.length) {
+        localStorage.setItem(key, JSON.stringify(records));
+        if (typeof window.o_renderLog === 'function') window.o_renderLog();
+      }
+    });
+  });
+
+  // ── Expose push functions globally ──
+  window.fbPushAlpha  = pushAlpha;
+  window.fbPushOmega  = pushOmega;
+  window.fbPushCustom = pushCustom;
+
+  // ── Mark ready after 2s (let init() run first) ──
+  setTimeout(() => { fbReady = true; }, 2000);
+
+  // ── Sync indicator ──
+  window.fbReady = () => fbReady;
+
+  // Update sync indicator
+  function updateSyncDot(status) {
+    const dot   = document.getElementById('fb-sync-dot');
+    const label = document.getElementById('fb-sync-label');
+    if (!dot || !label) return;
+    if (status === 'live') {
+      dot.style.background   = '#10d99c';
+      dot.style.boxShadow    = '0 0 6px #10d99c';
+      label.style.color      = '#10d99c';
+      label.textContent      = 'LIVE';
+    } else if (status === 'saving') {
+      dot.style.background   = '#fbbf24';
+      dot.style.boxShadow    = '0 0 6px #fbbf24';
+      label.style.color      = '#fbbf24';
+      label.textContent      = 'SYNC';
+    } else {
+      dot.style.background   = '#4a5568';
+      dot.style.boxShadow    = 'none';
+      label.style.color      = '#4a5568';
+      label.textContent      = 'SYNC';
+    }
+  }
+  setTimeout(() => updateSyncDot('live'), 2200);
+  window.updateSyncDot = updateSyncDot;
+
+  // Flash yellow on push
+  const _origPushAlpha = pushAlpha;
+  window.fbPushAlpha = (...a) => { updateSyncDot('saving'); setTimeout(() => updateSyncDot('live'), 1200); _origPushAlpha(...a); };
+  const _origPushOmega = pushOmega;
+  window.fbPushOmega = (...a) => { updateSyncDot('saving'); setTimeout(() => updateSyncDot('live'), 1200); _origPushOmega(...a); };
+  const _origPushCustom = pushCustom;
+  window.fbPushCustom = (...a) => { updateSyncDot('saving'); setTimeout(() => updateSyncDot('live'), 1200); _origPushCustom(...a); };
+</script>
+
 </head>
 <body>
 <div class="calc-switcher">
   <button class="calc-tab alpha on" onclick="switchCalc('alpha')">Alpha Calculator<span class="tab-pill">α</span></button>
   <button class="calc-tab omega"    onclick="switchCalc('omega')">Omega Calculator<span class="tab-pill">Ω</span></button>
   <button class="calc-tab custom"   onclick="switchCalc('custom')">Custom Calculator<span class="tab-pill cc-pill">✦</span></button>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:6px;padding-right:4px">
+    <div id="fb-sync-dot" style="width:7px;height:7px;border-radius:50%;background:#4a5568" title="Firebase sync"></div>
+    <span id="fb-sync-label" style="font-size:9px;font-family:'JetBrains Mono',monospace;color:#4a5568;letter-spacing:.05em">SYNC</span>
+  </div>
 </div>
 
 <!-- ══ ALPHA ══ -->
@@ -221,7 +407,7 @@ select option{background:#1a1e25}
     <label>TODAY'S EQUITY</label>
     <div class="eq-input-wrap">
       <span class="eq-prefix">$</span>
-      <input class="eq-input" type="number" id="equity" value="20000" min="0" step="100" oninput="calcActive()">
+      <input class="eq-input" type="number" id="equity" value="20000" min="0" step="100" oninput="calcActive(); if(typeof window.fbPushAlpha==='function')window.fbPushAlpha();">
     </div>
   </div>
   <div class="eq-hint" id="equity-hint">Account loaded</div>
@@ -320,7 +506,10 @@ function f(n, d=2) {
 }
 function fi(n) { return (!n || isNaN(n)) ? '—' : Math.floor(n).toLocaleString('en-US'); }
 
-function saveTabs() { localStorage.setItem('pcTabs', JSON.stringify(tabs)); }
+function saveTabs() {
+  localStorage.setItem('pcTabs', JSON.stringify(tabs));
+  if (typeof window.fbPushAlpha === 'function') window.fbPushAlpha();
+}
 
 function getCat(tab) {
   const cats = CATS[tab.setup] || CATS['A'];
@@ -911,6 +1100,7 @@ function loadDayLog(dk) {
 // Save log for a date key
 function saveDayLog(dk, records) {
   localStorage.setItem(logKey(dk), JSON.stringify(records.slice(0,80)));
+  if (typeof window.fbPushAlphaLog === 'function') window.fbPushAlphaLog(dk, records.slice(0,80));
 }
 
 // Today's key
@@ -1454,7 +1644,7 @@ select option{background:#1a1e25}
     <label>TODAY'S EQUITY</label>
     <div class="eq-input-wrap">
       <span class="eq-prefix">$</span>
-      <input class="eq-input" type="number" id="om-equity" value="20000" min="0" step="100" oninput="o_calcActive()">
+      <input class="eq-input" type="number" id="om-equity" value="20000" min="0" step="100" oninput="o_calcActive(); if(typeof window.fbPushOmega==='function')window.fbPushOmega();">
     </div>
   </div>
   <div class="eq-hint" id="om-equity-hint">Account loaded</div>
@@ -1564,7 +1754,10 @@ function f(n, d=2) {
 }
 function fi(n) { return (!n || isNaN(n)) ? '—' : Math.floor(n).toLocaleString('en-US'); }
 
-function saveTabs() { localStorage.setItem('omegaTabs', JSON.stringify(tabs)); }
+function saveTabs() {
+  localStorage.setItem('omegaTabs', JSON.stringify(tabs));
+  if (typeof window.fbPushOmega === 'function') window.fbPushOmega();
+}
 
 function getCat(tab) {
   const cats = OMEGA_CATS[tab.setup] || OMEGA_CATS['A'];
@@ -2174,6 +2367,7 @@ function loadDayLog(dk) {
 // Save log for a date key
 function saveDayLog(dk, records) {
   localStorage.setItem(logKey(dk), JSON.stringify(records.slice(0,80)));
+  if (typeof window.fbPushOmegaLog === 'function') window.fbPushOmegaLog(dk, records.slice(0,80));
 }
 
 // Today's key
@@ -3092,6 +3286,7 @@ function ccCalc() {
       prevClose: document.getElementById('cc-prevclose')?.value || '',
       manualStop: cc_manualStop,
     }));
+    if (typeof window.fbPushCustom === 'function') window.fbPushCustom();
   } catch(e) {}
 
   ccCalcGaps();
