@@ -97,16 +97,39 @@ body{background:#0d0f12;overflow-x:hidden}
     const d = snap.val();
     if (!d || !fbReady) return;
     suppressAlpha = true;
+    // Update equity input directly
     if (d.equity !== undefined) {
       const el = document.getElementById('equity');
-      if (el && el.value != d.equity) el.value = d.equity;
-      localStorage.setItem('alphaLastEquity', d.equity);
+      if (el && el.value != d.equity) {
+        el.value = d.equity;
+        localStorage.setItem('alphaLastEquity', d.equity);
+      }
     }
+    // Update tabs
     if (d.tabs) {
-      localStorage.setItem('pcTabs', d.tabs);
+      try {
+        const remoteTabs = JSON.parse(d.tabs);
+        const localTabs  = JSON.parse(localStorage.getItem('pcTabs') || '[]');
+        // Only update if remote is different
+        if (JSON.stringify(remoteTabs) !== JSON.stringify(localTabs)) {
+          localStorage.setItem('pcTabs', d.tabs);
+          if (typeof renderTabsBar === 'function') {
+            // Reload tabs array from localStorage
+            const t = JSON.parse(d.tabs);
+            if (Array.isArray(t) && t.length) {
+              tabs.length = 0;
+              t.forEach(x => tabs.push(x));
+            }
+            renderTabsBar();
+            renderAllPanels();
+          }
+        }
+      } catch(e) {}
     }
     suppressAlpha = false;
-    if (typeof renderTabsBar === 'function') { renderTabsBar(); renderAllPanels(); calcTab(activeTab); }
+    // Always recalc with new equity
+    if (typeof calcTab === 'function') calcTab(activeTab);
+    if (typeof window.ccSyncEquityFromSources === 'function') window.ccSyncEquityFromSources();
   });
 
   onValue(ref(db, 'omega/state'), snap => {
@@ -115,23 +138,54 @@ body{background:#0d0f12;overflow-x:hidden}
     suppressOmega = true;
     if (d.equity !== undefined) {
       const el = document.getElementById('om-equity');
-      if (el && el.value != d.equity) el.value = d.equity;
-      localStorage.setItem('omegaLastEquity', d.equity);
+      if (el && el.value != d.equity) {
+        el.value = d.equity;
+        localStorage.setItem('omegaLastEquity', d.equity);
+      }
     }
     if (d.tabs) {
-      localStorage.setItem('omegaTabs', d.tabs);
+      try {
+        const remoteTabs = JSON.parse(d.tabs);
+        const localTabs  = JSON.parse(localStorage.getItem('omegaTabs') || '[]');
+        if (JSON.stringify(remoteTabs) !== JSON.stringify(localTabs)) {
+          localStorage.setItem('omegaTabs', d.tabs);
+          if (typeof window.o_renderTabsBar === 'function') {
+            window.o_renderTabsBar();
+            window.o_renderAllPanels();
+          }
+        }
+      } catch(e) {}
     }
     suppressOmega = false;
-    if (typeof window.o_renderTabsBar === 'function') { window.o_renderTabsBar(); window.o_renderAllPanels(); window.o_calcTab(window.o_activeTab || 0); }
+    if (typeof window.o_calcTab === 'function') window.o_calcTab(0);
+    if (typeof window.ccSyncEquityFromSources === 'function') window.ccSyncEquityFromSources();
   });
 
   onValue(ref(db, 'custom/state'), snap => {
     const d = snap.val();
     if (!d || !fbReady) return;
     suppressCustom = true;
-    if (d.state) localStorage.setItem('ccState', d.state);
+    if (d.state) {
+      const localState = localStorage.getItem('ccState');
+      if (d.state !== localState) {
+        localStorage.setItem('ccState', d.state);
+        // Update DOM directly
+        try {
+          const s = JSON.parse(d.state);
+          const setVal = (id, val) => { const el = document.getElementById(id); if(el && val !== undefined && val !== '') el.value = val; };
+          setVal('cc-alpha-equity', s.alphaEq);
+          setVal('cc-omega-equity', s.omegaEq);
+          setVal('cc-entry',        s.entry);
+          setVal('cc-stop',         s.stop);
+          setVal('cc-alpha-risk',   s.alphaRisk);
+          setVal('cc-omega-risk',   s.omegaRisk);
+          setVal('cc-prevclose',    s.prevClose);
+          if (typeof window.ccCalc === 'function') window.ccCalc();
+          if (typeof window.ccCalcGaps === 'function') window.ccCalcGaps();
+        } catch(e) {}
+      }
+    }
     suppressCustom = false;
-    if (typeof window.ccInit === 'function') window.ccInit();
   });
 
   // Sync trade logs both ways
@@ -407,7 +461,7 @@ select option{background:#1a1e25}
     <label>TODAY'S EQUITY</label>
     <div class="eq-input-wrap">
       <span class="eq-prefix">$</span>
-      <input class="eq-input" type="number" id="equity" value="20000" min="0" step="100" oninput="calcActive(); if(typeof window.fbPushAlpha==='function')window.fbPushAlpha();">
+      <input class="eq-input" type="number" id="equity" value="20000" min="0" step="100" oninput="calcActive(); if(typeof window.fbPushAlpha==='function')window.fbPushAlpha(); if(typeof window.ccSyncEquityFromSources==='function')window.ccSyncEquityFromSources();">
     </div>
   </div>
   <div class="eq-hint" id="equity-hint">Account loaded</div>
@@ -1644,7 +1698,7 @@ select option{background:#1a1e25}
     <label>TODAY'S EQUITY</label>
     <div class="eq-input-wrap">
       <span class="eq-prefix">$</span>
-      <input class="eq-input" type="number" id="om-equity" value="20000" min="0" step="100" oninput="o_calcActive(); if(typeof window.fbPushOmega==='function')window.fbPushOmega();">
+      <input class="eq-input" type="number" id="om-equity" value="20000" min="0" step="100" oninput="o_calcActive(); if(typeof window.fbPushOmega==='function')window.fbPushOmega(); if(typeof window.ccSyncEquityFromSources==='function')window.ccSyncEquityFromSources();">
     </div>
   </div>
   <div class="eq-hint" id="om-equity-hint">Account loaded</div>
@@ -2851,10 +2905,13 @@ function init() {
   <!-- Equity + Risk row -->
   <div class="cc-eq-row">
     <div class="cc-panel">
-      <div class="cc-label">ALPHA EQUITY</div>
+      <div class="cc-label" style="display:flex;align-items:center;justify-content:space-between">
+        ALPHA EQUITY
+        <button id="cc-alpha-eq-lock-btn" onclick="ccToggleLock('alpha')" title="Unlock to edit manually" style="background:transparent;border:none;cursor:pointer;font-size:11px;color:var(--cc-text3);padding:0;line-height:1">🔒</button>
+      </div>
       <div class="cc-input-wrap" style="margin-bottom:10px">
         <span class="cc-pfx">$</span>
-        <input class="cc-input" type="number" id="cc-alpha-equity" value="20000" min="0" step="100" oninput="ccCalc()">
+        <input class="cc-input" type="number" id="cc-alpha-equity" value="20000" min="0" step="100" oninput="ccCalc()" readonly style="opacity:.7;cursor:default">
       </div>
       <div class="cc-label">ALPHA RISK %</div>
       <div style="display:flex;align-items:center;gap:6px">
@@ -2869,10 +2926,13 @@ function init() {
       </div>
     </div>
     <div class="cc-panel">
-      <div class="cc-label">OMEGA EQUITY</div>
+      <div class="cc-label" style="display:flex;align-items:center;justify-content:space-between">
+        OMEGA EQUITY
+        <button id="cc-omega-eq-lock-btn" onclick="ccToggleLock('omega')" title="Unlock to edit manually" style="background:transparent;border:none;cursor:pointer;font-size:11px;color:var(--cc-text3);padding:0;line-height:1">🔒</button>
+      </div>
       <div class="cc-input-wrap" style="margin-bottom:10px">
         <span class="cc-pfx">$</span>
-        <input class="cc-input" type="number" id="cc-omega-equity" value="20000" min="0" step="100" oninput="ccCalc()">
+        <input class="cc-input" type="number" id="cc-omega-equity" value="20000" min="0" step="100" oninput="ccCalc()" readonly style="opacity:.7;cursor:default">
       </div>
       <div class="cc-label">OMEGA RISK %</div>
       <div style="display:flex;align-items:center;gap:6px">
@@ -3318,6 +3378,54 @@ function ccToggleAcc(btn) {
   btn.classList.toggle('open', !isOpen);
   body.style.display = isOpen ? 'none' : '';
 }
+// Lock state
+let ccAlphaLocked = true;
+let ccOmegaLocked = true;
+
+function ccToggleLock(which) {
+  const isAlpha  = which === 'alpha';
+  const inputId  = isAlpha ? 'cc-alpha-equity' : 'cc-omega-equity';
+  const btnId    = isAlpha ? 'cc-alpha-eq-lock-btn' : 'cc-omega-eq-lock-btn';
+  const el       = document.getElementById(inputId);
+  const btn      = document.getElementById(btnId);
+  if (!el || !btn) return;
+  if (isAlpha) {
+    ccAlphaLocked = !ccAlphaLocked;
+    el.readOnly    = ccAlphaLocked;
+    el.style.opacity    = ccAlphaLocked ? '.7' : '1';
+    el.style.cursor     = ccAlphaLocked ? 'default' : 'text';
+    btn.textContent     = ccAlphaLocked ? '🔒' : '✎';
+    btn.style.color     = ccAlphaLocked ? 'var(--cc-text3)' : 'var(--cc-green)';
+    if (ccAlphaLocked) ccSyncEquityFromSources();
+  } else {
+    ccOmegaLocked = !ccOmegaLocked;
+    el.readOnly    = ccOmegaLocked;
+    el.style.opacity    = ccOmegaLocked ? '.7' : '1';
+    el.style.cursor     = ccOmegaLocked ? 'default' : 'text';
+    btn.textContent     = ccOmegaLocked ? '🔒' : '✎';
+    btn.style.color     = ccOmegaLocked ? 'var(--cc-text3)' : 'var(--cc-green)';
+    if (ccOmegaLocked) ccSyncEquityFromSources();
+  }
+}
+
+function ccSyncEquityFromSources() {
+  // Read Alpha equity from the Alpha calculator input
+  const alphaEl = document.getElementById('equity');
+  const omegaEl = document.getElementById('om-equity');
+  const ccAlpha = document.getElementById('cc-alpha-equity');
+  const ccOmega = document.getElementById('cc-omega-equity');
+  if (ccAlpha && ccAlphaLocked) {
+    const val = alphaEl ? alphaEl.value : localStorage.getItem('alphaLastEquity') || '20000';
+    if (val && ccAlpha.value != val) { ccAlpha.value = val; }
+  }
+  if (ccOmega && ccOmegaLocked) {
+    const val = omegaEl ? omegaEl.value : localStorage.getItem('omegaLastEquity') || '20000';
+    if (val && ccOmega.value != val) { ccOmega.value = val; }
+  }
+  ccSyncEquityFromSources();
+}
+window.ccSyncEquityFromSources = ccSyncEquityFromSources;
+window.ccToggleLock   = ccToggleLock;
 window.ccToggleAcc    = ccToggleAcc;
 window.ccCalc         = ccCalc;
 window.ccOnEntry      = ccOnEntry;
