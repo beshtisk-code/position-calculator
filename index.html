@@ -447,6 +447,10 @@ select option{background:#1a1e25}
 .bracket-warn .warn-fix{font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 10px;border-radius:5px;border:1px solid rgba(255,79,79,0.4);background:rgba(255,79,79,0.14);color:#ff5c6e;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .12s;font-weight:600}
 .bracket-warn .warn-fix:hover{background:rgba(255,92,110,0.28)}
 .entry-mismatch{border-color:rgba(255,92,110,.65) !important;box-shadow:0 0 0 3px rgba(255,92,110,.16) !important}
+
+.cc-ref-pct{text-align:right;font-weight:800;color:#e2e0ff !important;font-size:12px}
+.cc-ref-elite{color:#00d084 !important;font-weight:800 !important}
+.cc-ref-avoid{color:#f56565 !important;font-weight:800 !important}
 </style>
 <!-- ── Header ── -->
 <div class="hdr">
@@ -1309,7 +1313,8 @@ function renderLog() {
         </span>
         <span style="font-weight:700;color:var(--text)">${fi(t.shares)}</span>
         <span style="color:var(--red)">$${f(t.risk,0)}</span>
-        <span style="color:var(--text3);font-size:9px">${t.time}<br>${t.date||''}</span>
+
+        <span style="color:var(--text3);font-size:9px">$${f(t.equity,0)}<br><span style="color:var(--amber)">1R=$${f(t.equity*0.01,0)}</span></span>        <span style="color:var(--text3);font-size:9px">${t.time}<br>${t.date||''}</span>
         <span style="color:var(--text3);font-size:10px;text-align:right">${t.expanded?'▲':'▼'}</span>
       </div>`;
 
@@ -1492,6 +1497,100 @@ function copyTrade(i) {
   renderLog();
   calcTab(activeTab);
 })();
+
+// ── Manual Position Sizer ──
+(function(){
+  let mkSrc = 'alpha';
+
+  function getEquity(){
+    if(mkSrc === 'alpha'){
+      return parseFloat(document.getElementById('equity')?.value) || 0;
+    } else {
+      return parseFloat(document.getElementById('om-equity')?.value) || 0;
+    }
+  }
+
+  window.mkSwitch = function(src){
+    mkSrc = src;
+    const ba = document.getElementById('mk-src-alpha');
+    const bo = document.getElementById('mk-src-omega');
+    if(ba){ ba.style.border = src==='alpha'?'1.5px solid #00d084':'1px solid rgba(255,255,255,.15)';
+            ba.style.color  = src==='alpha'?'#00d084':'rgba(255,255,255,.4)';
+            ba.style.background = src==='alpha'?'rgba(0,208,132,.1)':'transparent'; }
+    if(bo){ bo.style.border = src==='omega'?'1.5px solid #22d3ee':'1px solid rgba(255,255,255,.15)';
+            bo.style.color  = src==='omega'?'#22d3ee':'rgba(255,255,255,.4)';
+            bo.style.background = src==='omega'?'rgba(34,211,238,.08)':'transparent'; }
+    window.mkCalc();
+  };
+
+  window.mkCalc = function(){
+    const equity    = getEquity();
+    const origEntry = parseFloat(document.getElementById('mk-orig-e')?.value) || 0;
+    const stop      = parseFloat(document.getElementById('mk-stop')?.value) || 0;
+    const currEntry = parseFloat(document.getElementById('mk-curr-e')?.value) || 0;
+    const riskPct   = parseFloat(document.getElementById('mk-risk')?.value) || 0;
+
+    // Update equity display
+    const eqEl = document.getElementById('mk-eq-val');
+    const r1El = document.getElementById('mk-1r-val');
+    if(eqEl) eqEl.textContent = '$' + Math.round(equity).toLocaleString();
+    if(r1El) r1El.textContent = '$' + Math.round(equity * 0.01).toLocaleString();
+
+    const res = document.getElementById('mk-results');
+    if(!res) return;
+
+    if(!equity || !origEntry || !stop || !currEntry || !riskPct ||
+       stop <= origEntry || stop <= currEntry){
+      res.style.display = 'none';
+      return;
+    }
+
+    const riskDollars = equity * riskPct / 100;
+    const origRPS   = stop - origEntry;
+    const adjRPS    = stop - currEntry;
+    const origShares = Math.floor(riskDollars / origRPS);
+    const adjShares  = Math.floor(riskDollars / adjRPS);
+    const reduction  = origShares > 0 ? Math.round((origShares - adjShares) / origShares * 100) : 0;
+
+    const f2 = n => n.toFixed(2);
+    const fi = n => Math.round(n).toLocaleString();
+
+    document.getElementById('mk-r-oe').textContent  = f2(origEntry);
+    document.getElementById('mk-r-os').textContent  = f2(stop);
+    document.getElementById('mk-r-osh').textContent = fi(origShares);
+    document.getElementById('mk-r-ord').textContent = fi(riskDollars);
+    document.getElementById('mk-r-orps').textContent= f2(origRPS);
+    document.getElementById('mk-r-ae').textContent  = f2(currEntry);
+    document.getElementById('mk-r-as').textContent  = f2(stop);
+    document.getElementById('mk-r-ash').textContent = fi(adjShares);
+    document.getElementById('mk-r-ard').textContent = fi(riskDollars);
+    document.getElementById('mk-r-arps').textContent= f2(adjRPS);
+
+    const delta = document.getElementById('mk-delta-bar');
+    if(delta){
+      if(reduction > 0){
+        delta.textContent = 'Position reduced by ' + reduction + '% — from ' + fi(origShares) + ' to ' + fi(adjShares) + ' shares';
+        delta.style.color = 'rgba(255,179,71,.8)';
+      } else if(reduction < 0){
+        delta.textContent = 'Position increased — current entry is better than original';
+        delta.style.color = 'rgba(0,208,132,.8)';
+      } else {
+        delta.textContent = 'Same position size as original plan';
+        delta.style.color = 'rgba(255,255,255,.5)';
+      }
+    }
+
+    res.style.display = 'block';
+  };
+
+  // Re-calc when equity changes in Alpha or Omega tabs
+  ['equity','om-equity'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', window.mkCalc);
+  });
+
+})();
+
 </script>
 </div>
 
@@ -1684,6 +1783,10 @@ select option{background:#1a1e25}
 .bracket-warn .warn-fix{font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 10px;border-radius:5px;border:1px solid rgba(255,79,79,0.4);background:rgba(255,79,79,0.14);color:#ff5c6e;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .12s;font-weight:600}
 .bracket-warn .warn-fix:hover{background:rgba(255,92,110,0.28)}
 .entry-mismatch{border-color:rgba(255,92,110,.65) !important;box-shadow:0 0 0 3px rgba(255,92,110,.16) !important}
+
+.cc-ref-pct{text-align:right;font-weight:800;color:#e2e0ff !important;font-size:12px}
+.cc-ref-elite{color:#00d084 !important;font-weight:800 !important}
+.cc-ref-avoid{color:#f56565 !important;font-weight:800 !important}
 </style>
 <!-- ── Header ── -->
 <div class="hdr">
@@ -2578,6 +2681,10 @@ function renderLog() {
         </span>
         <span style="font-weight:700;color:var(--text)">${fi(t.shares)}</span>
         <span style="color:var(--red)">$${f(t.risk,0)}</span>
+        <span style="color:var(--text3);font-size:9px">
+          $${f(t.equity,0)}<br>
+          <span style="color:var(--amber)">1R=$${f(t.equity*0.01,0)}</span>
+        </span>
         <span style="color:var(--text3);font-size:9px">${t.time}<br>${t.date||''}</span>
         <span style="color:var(--text3);font-size:10px;text-align:right">${t.expanded?'▲':'▼'}</span>
       </div>`;
@@ -2875,14 +2982,15 @@ function init() {
 #pane-custom .cc-acc-btn.open .cc-acc-arrow{transform:rotate(180deg)}
 #pane-custom .cc-ref-table{width:100%;border-collapse:collapse;font-size:11px;font-family:'JetBrains Mono',monospace}
 #pane-custom .cc-ref-table th{padding:6px 12px;text-align:left;font-size:9px;color:var(--cc-text3);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--cc-border);font-weight:500}
-#pane-custom .cc-ref-table th:last-child,#pane-custom .cc-ref-table td.cc-ref-pct{text-align:right}
+#pane-custom .cc-ref-table th:last-child,#pane-custom .cc-ref-table td.cc-ref-pct{text-align:right;font-weight:800;color:#e2e0ff !important}
 #pane-custom .cc-ref-table td{padding:7px 12px;color:var(--cc-text2);border-bottom:1px solid rgba(255,255,255,0.04)}
 #pane-custom .cc-ref-table tr:last-child td{border-bottom:none}
 #pane-custom .cc-ref-table tr:hover td{background:rgba(255,255,255,0.03)}
 #pane-custom .cc-ref-table td:first-child{font-weight:700;color:var(--cc-text)}
-#pane-custom .cc-ref-pct{font-weight:700;color:var(--cc-text)}
-#pane-custom .cc-ref-elite{color:#4ade80 !important}
-#pane-custom .cc-ref-avoid{color:#f87171 !important}
+#pane-custom .cc-ref-pct{text-align:right;font-weight:800;color:#e2e0ff !important}
+#pane-custom .cc-ref-elite{color:#00d084 !important;font-weight:800 !important}
+#pane-custom .cc-ref-avoid{color:#f56565 !important;font-weight:800 !important}
+body.calc-light .cc-ref-pct{text-align:right;font-weight:800;color:#e2e0ff !important}
 @media(max-width:700px){
   #pane-custom .cc-fields-row{grid-template-columns:1fr 1fr}
   #pane-custom .cc-output-grid{grid-template-columns:1fr}
@@ -3185,6 +3293,79 @@ function init() {
 
   </div><!-- end ref grid -->
 
+  <!-- Manual Position Sizer -->
+  <div style="margin-top:28px;border-top:1px solid rgba(255,255,255,.08);padding-top:24px">
+    <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.35);letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px">Manual Position Sizer</div>
+
+    <!-- Equity source toggle -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.4)">Equity from:</span>
+      <button id="mk-src-alpha" onclick="mkSwitch('alpha')" style="font-size:10px;font-family:'JetBrains Mono',monospace;padding:4px 12px;border-radius:6px;border:1.5px solid #00d084;background:rgba(0,208,132,.1);color:#00d084;cursor:pointer">α Alpha</button>
+      <button id="mk-src-omega" onclick="mkSwitch('omega')" style="font-size:10px;font-family:'JetBrains Mono',monospace;padding:4px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.4);cursor:pointer">Ω Omega</button>
+      <span style="font-size:12px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.7);margin-left:8px">Equity: <strong id="mk-eq-val" style="color:#fff">$0</strong> · 1R = <strong id="mk-1r-val" style="color:#fbbf24">$0</strong></span>
+    </div>
+
+    <!-- Inputs -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div>
+        <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.35);letter-spacing:.06em;margin-bottom:5px">ORIGINAL ENTRY</div>
+        <input id="mk-orig-e" type="number" step="0.01" placeholder="2.00" oninput="mkCalc()"
+          style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:8px 10px;color:#fff;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
+        <div style="font-size:9px;color:rgba(255,255,255,.3);margin-top:3px;font-family:'JetBrains Mono',monospace">system level</div>
+      </div>
+      <div>
+        <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.35);letter-spacing:.06em;margin-bottom:5px">ORIGINAL STOP</div>
+        <input id="mk-stop" type="number" step="0.01" placeholder="4.00" oninput="mkCalc()"
+          style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:8px 10px;color:#fff;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
+        <div style="font-size:9px;color:rgba(255,255,255,.3);margin-top:3px;font-family:'JetBrains Mono',monospace">stays fixed</div>
+      </div>
+      <div>
+        <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:#22d3ee;letter-spacing:.06em;margin-bottom:5px">CURRENT ENTRY</div>
+        <input id="mk-curr-e" type="number" step="0.01" placeholder="1.50" oninput="mkCalc()"
+          style="width:100%;background:rgba(34,211,238,.07);border:1.5px solid rgba(34,211,238,.35);border-radius:7px;padding:8px 10px;color:#22d3ee;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
+        <div style="font-size:9px;color:rgba(34,211,238,.5);margin-top:3px;font-family:'JetBrains Mono',monospace">where you are now</div>
+      </div>
+      <div>
+        <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.35);letter-spacing:.06em;margin-bottom:5px">RISK %</div>
+        <input id="mk-risk" type="number" step="1" placeholder="20" oninput="mkCalc()"
+          style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:8px 10px;color:#fff;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
+        <div style="font-size:9px;color:rgba(255,255,255,.3);margin-top:3px;font-family:'JetBrains Mono',monospace">allocation %</div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="mk-results" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:12px">
+          <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.4);letter-spacing:.06em;margin-bottom:6px">ORIGINAL PLAN</div>
+          <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.4);margin-bottom:6px">
+            entry $<span id="mk-r-oe">—</span> · stop $<span id="mk-r-os">—</span>
+          </div>
+          <div style="font-size:24px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#fff;margin-bottom:4px">
+            <span id="mk-r-osh">—</span> <span style="font-size:14px;font-weight:400;color:rgba(255,255,255,.5)">shares</span>
+          </div>
+          <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.4)">
+            risk $<span id="mk-r-ord">—</span> · $<span id="mk-r-orps">—</span>/sh
+          </div>
+        </div>
+        <div style="background:rgba(34,211,238,.07);border:1.5px solid rgba(34,211,238,.3);border-radius:8px;padding:12px">
+          <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:#22d3ee;letter-spacing:.06em;margin-bottom:6px">ADJUSTED PLAN</div>
+          <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:rgba(34,211,238,.5);margin-bottom:6px">
+            entry $<span id="mk-r-ae">—</span> · stop $<span id="mk-r-as">—</span>
+          </div>
+          <div style="font-size:24px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#22d3ee;margin-bottom:4px">
+            <span id="mk-r-ash">—</span> <span style="font-size:14px;font-weight:400;color:rgba(34,211,238,.5)">shares</span>
+          </div>
+          <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:rgba(34,211,238,.5)">
+            risk $<span id="mk-r-ard">—</span> · $<span id="mk-r-arps">—</span>/sh
+          </div>
+        </div>
+      </div>
+      <div id="mk-delta-bar" style="background:rgba(255,255,255,.04);border-radius:7px;padding:8px 12px;font-size:11px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.5);text-align:center"></div>
+    </div>
+
+  </div>
+
 </div><!-- end content -->
 
 <script>
@@ -3463,5 +3644,6 @@ function switchCalc(which) {
   if (saved === 'omega') switchCalc('omega');
 })();
 </script>
+
 </body>
 </html>
